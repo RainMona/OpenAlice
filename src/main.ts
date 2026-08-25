@@ -2,6 +2,7 @@ import { readFile, writeFile, mkdir } from 'fs/promises'
 import { dirname } from 'path'
 import {
   acquireOpenAliceRuntimeLocks,
+  reclaimStaleForeignRequested,
   takeoverRequested,
   type OpenAliceRuntimeLock,
 } from '@traderalice/guardian-runtime'
@@ -454,6 +455,7 @@ async function start(): Promise<void> {
     launcherRoot: resolveLauncherRoot(),
     launcher: process.env['OPENALICE_LAUNCHER'] ?? 'standalone',
     takeover: takeoverRequested(),
+    reclaimStaleForeign: reclaimStaleForeignRequested(),
     ...(guardianPid ? { guardianPid } : {}),
     ...(guardianStartedAt ? { guardianStartedAt } : {}),
     onOwnershipLost: (err) => {

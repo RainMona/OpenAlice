@@ -318,6 +318,7 @@ sealing, and Broker Packs must remain coherent.
 │   │                          provenance, Agent conversation log, compatibility lock
 │   └── auto-quant-v2-mirror/  shared AutoQuant V2 source mirror
 ├── state/
+│   ├── machine-id             Docker/home-stable identity (optional)
 │   ├── guardian.lock          launcher ownership
 │   └── runtime.lock           shared writer ownership
 ├── runtime/
