@@ -2,18 +2,22 @@ import { useEffect, useState, type ReactElement } from 'react'
 import { Check, ChevronRight, CircleAlert, CircleDashed, LoaderCircle } from 'lucide-react'
 import { MarkdownContent } from '../MarkdownContent'
 import type { ConversationActivity, ConversationContent, ConversationItem, ConversationToolStep } from './types'
+import { MessageActions } from './MessageActions'
 
 export function ConversationTranscriptItem({
   item,
   working,
+  latest = false,
 }: {
   readonly item: ConversationItem
   readonly working: boolean
+  readonly latest?: boolean
 }): ReactElement {
   if (item.kind === 'user') {
     return (
-      <article className="conversation-message is-user">
+      <article className={`conversation-message is-user${latest ? ' is-latest' : ''}`}>
         <div className="conversation-message-body"><ConversationContentView content={item.content} /></div>
+        {item.content.some(block => block.kind === 'markdown') && <MessageActions text={item.content.flatMap(block => block.kind === 'markdown' ? [block.text] : []).join('\n\n')} />}
       </article>
     )
   }
@@ -25,7 +29,7 @@ export function ConversationTranscriptItem({
     )
   }
   return (
-    <article className="conversation-message is-assistant is-turn">
+    <article className={`conversation-message is-assistant is-turn${latest ? ' is-latest' : ''}`}>
       <div className="conversation-message-body">
         {item.progress.map((text, index) => (
           <div key={index} className="conversation-progress-text"><MarkdownContent text={text} /></div>
@@ -33,6 +37,7 @@ export function ConversationTranscriptItem({
         {item.activity && <ConversationActivityGroup activity={item.activity} working={working} />}
         {item.final && <div className="conversation-final-text"><MarkdownContent text={item.final} /></div>}
       </div>
+      {!working && item.final && <MessageActions text={item.final} />}
     </article>
   )
 }
@@ -115,7 +120,7 @@ function ConversationToolStepView({ step, working }: { readonly step: Conversati
               : <Check size={13} />}
         </span>
         <code>{step.name}</code>
-        <span className="conversation-step-summary">{summary ?? (step.status === 'running' ? 'Running…' : 'Completed')}</span>
+        <span className="conversation-step-summary">{summary ?? (step.status === 'running' ? (working ? 'Running…' : 'Incomplete') : failed ? 'Failed' : 'Completed')}</span>
         {resultChars !== null && <span className="conversation-step-size">{formatChars(resultChars)}</span>}
         <ChevronRight size={13} className="conversation-disclosure" aria-hidden="true" />
       </summary>

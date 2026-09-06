@@ -172,6 +172,14 @@ the Harness launch page; its context, controls and details are caller-owned
 slots, not embedded Pi selectors. Existing `oa-harness-composer-*` styling seams
 remain the shared visual material. Messages and composer use a 46rem reading
 measure, with local scrolling for wide output and wrapping toolbar controls.
+User messages use a quiet, borderless bubble; assistant prose sits directly on
+the canvas. Execution summaries are lightweight disclosure rows, with an inset
+rail for individual actions rather than nested activity cards. Preserve the
+shared Markdown table scroll wrapper instead of overriding table display.
+Completed text has a copy action that copies only the displayed message, not
+reasoning or tool payloads. Older actions reveal on hover or keyboard focus;
+the latest message and touch surfaces keep them visible. Clipboard failures
+are actionable, and interrupted tools must say incomplete rather than completed.
 
 The normalized types in this folder are ephemeral presentation data, not a new
 persisted transcript or execution protocol. An adapter converts wire messages
