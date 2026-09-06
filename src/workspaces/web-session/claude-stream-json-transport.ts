@@ -7,6 +7,7 @@
  * `control_request` frames (`can_use_tool`) and are answered with
  * `control_response`; `interrupt` is a client-initiated control request.
  */
+import { readClaudeHistory } from './claude-history.js'
 import {
   isJsonObject,
   stringOrNull,
@@ -42,6 +43,22 @@ export class ClaudeStreamJsonTransport implements WebSessionTransport {
   async start(): Promise<void> {
     // Claude prints `system/init` only once the first user message arrives,
     // so there is nothing to await here beyond a live process.
+    if (this.ctx.input.nativeSessionId) {
+      const history = await readClaudeHistory(this.ctx.input.cwd, this.ctx.input.nativeSessionId, this.ctx.input.env)
+      for (const entry of history) {
+        const message = entry['message']
+        if (!isJsonObject(message)) continue
+        if (entry['type'] === 'assistant') this.handleAssistant(message)
+        else if (Array.isArray(message['content']) && message['content'].some((part) => isJsonObject(part) && part['type'] === 'tool_result')) this.handleUser(message)
+        else {
+          this.commitBlocks()
+          this.builder.endTurn()
+          this.builder.user(partsFromUnknownContent(message['content'] ?? ''))
+        }
+      }
+      this.commitBlocks()
+      this.builder.endTurn()
+    }
     this.ctx.state.setPhase('idle')
   }
 
@@ -133,6 +150,14 @@ export class ClaudeStreamJsonTransport implements WebSessionTransport {
 
   private handleStreamEvent(raw: unknown): void {
     if (!isJsonObject(raw)) return
+    if (raw['type'] === 'message_start' && isJsonObject(raw['message'])) {
+      const id = stringOrNull(raw['message']['id'])
+      if (id && id !== this.assistantMessageId) {
+        this.commitBlocks()
+        this.assistantMessageId = id
+      }
+      return
+    }
     if (raw['type'] !== 'content_block_delta' || !isJsonObject(raw['delta'])) return
     const delta = raw['delta']
     const last = this.partial[this.partial.length - 1]
@@ -152,6 +177,7 @@ export class ClaudeStreamJsonTransport implements WebSessionTransport {
     if (!isJsonObject(message) || !Array.isArray(message['content'])) return
     const id = stringOrNull(message['id'])
     if (id !== this.assistantMessageId) {
+      if (this.assistantMessageId !== null) this.commitBlocks()
       this.assistantMessageId = id
       this.blocks = []
     }

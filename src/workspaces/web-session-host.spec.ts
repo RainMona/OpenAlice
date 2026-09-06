@@ -86,7 +86,7 @@ function texts(snapshot: WebSessionSnapshot | null): string[] {
 
 // ── pi-rpc ─────────────────────────────────────────────────────────────────
 
-function piRpcProcess(state: Json = {}, options: { rejectPrompt?: string } = {}): FakeProcess {
+function piRpcProcess(state: Json = {}, options: { rejectPrompt?: string; omitSettled?: boolean; modelError?: string } = {}): FakeProcess {
   let messages: unknown[] = []
   const rpcState = { sessionId: 'native-pi', isStreaming: false, isCompacting: false, ...state }
   return new FakeProcess((command, self) => {
@@ -100,13 +100,16 @@ function piRpcProcess(state: Json = {}, options: { rejectPrompt?: string } = {})
     }
     if (type === 'prompt') {
       const user = { role: 'user', content: command['message'] }
-      const assistant = { role: 'assistant', content: [{ type: 'text', text: 'hello' }] }
+      const assistant = options.modelError
+        ? { role: 'assistant', content: [], stopReason: 'error', errorMessage: options.modelError }
+        : { role: 'assistant', content: [{ type: 'text', text: 'hello' }] }
       messages = [...messages, user, assistant]
       self.line({ type: 'response', id, command: type, success: true })
       self.line({ type: 'agent_start' })
       self.line({ type: 'message_update', message: { role: 'assistant', content: [{ type: 'text', text: 'hel' }] } })
       self.line({ type: 'message_end', message: assistant })
-      self.line({ type: 'agent_settled' })
+      self.line({ type: 'agent_end', messages, willRetry: false })
+      if (!options.omitSettled) self.line({ type: 'agent_settled' })
     }
     if (type === 'abort') self.line({ type: 'response', id, command: type, success: true })
   })
@@ -129,6 +132,27 @@ describe('WebSessionHost with the pi-rpc transport', () => {
       { role: 'assistant', content: [{ type: 'text', text: 'hello' }] },
     ])
     expect(snapshot?.streamingMessage).toBeNull()
+  })
+
+  it('settles OMP without a Pi-specific agent_settled event', async () => {
+    const host = new WebSessionHost(logger, {}, () => piRpcProcess({}, { omitSettled: true }) as never)
+    await host.start(input({ agent: 'omp' }))
+    await host.prompt('record-1', 'hi')
+    await settle(80)
+    expect(host.get('record-1')?.phase).toBe('idle')
+    expect(host.get('record-1')?.streamingMessage).toBeNull()
+    expect(texts(host.get('record-1'))).toEqual(['user:hi', 'assistant:hello'])
+    await host.stopAll()
+  })
+
+  it('surfaces asynchronous model failures instead of an empty successful reply', async () => {
+    const host = new WebSessionHost(logger, {}, () => piRpcProcess({}, { modelError: '401: invalid API key' }) as never)
+    await host.start(input({}))
+    await host.prompt('record-1', 'hi')
+    await settle(80)
+    expect(host.get('record-1')?.phase).toBe('idle')
+    expect(host.get('record-1')?.error).toBe('401: invalid API key')
+    await host.stopAll()
   })
 
   it('binds the runtime-minted session id for a fresh omp session', async () => {
