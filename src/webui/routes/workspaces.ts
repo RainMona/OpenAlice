@@ -2581,7 +2581,8 @@ export function createWorkspaceRoutes(
   });
 
   // Answer a runtime permission/question request with one of the options the
-  // runtime itself offered. The transport validates the option id.
+  // runtime itself offered, or free text for a question. The host and transport
+  // validate the answer against the pending request.
   app.post('/:id/sessions/:sid/web/respond', async (c) => {
     const ctx = webSessionContext(c);
     if (!ctx) return c.json({ error: 'not_found' }, 404);
@@ -2589,11 +2590,12 @@ export function createWorkspaceRoutes(
     const fields = body && typeof body === 'object' ? body as Record<string, unknown> : {};
     const requestId = fields['requestId'];
     const optionId = fields['optionId'];
-    if (typeof requestId !== 'string' || !requestId || typeof optionId !== 'string') {
+    const text = fields['text'];
+    if (typeof requestId !== 'string' || !requestId || typeof optionId !== 'string' || (text !== undefined && typeof text !== 'string')) {
       return c.json({ error: 'bad_request', message: 'requestId and optionId are required' }, 400);
     }
     try {
-      const snapshot = await svc.web.respond(ctx.token, requestId, optionId);
+      const snapshot = await svc.web.respond(ctx.token, requestId, optionId, text as string | undefined);
       await svc.sessionRegistry.update(ctx.id, ctx.token, { lastActiveAt: new Date().toISOString() });
       return c.json({ ok: true, snapshot });
     } catch (err) {

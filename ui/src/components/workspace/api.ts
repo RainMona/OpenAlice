@@ -864,6 +864,8 @@ export interface WebRequestOption {
 export interface WebPermissionRequest {
   readonly id: string;
   readonly kind: 'permission' | 'question';
+  readonly allowText?: boolean;
+  readonly secret?: boolean;
   readonly title: string;
   readonly description?: string;
   readonly tool?: { readonly name: string; readonly input: unknown };
@@ -1452,14 +1454,15 @@ export async function abortWebSession(wsId: string, sessionId: string): Promise<
   return webSessionMutation(webSessionUrl(wsId, sessionId, '/abort'), 'abort');
 }
 
-/** Answer a runtime permission/question with one of the options it offered. */
+/** Answer an offered option, or use an empty optionId and text for a question. */
 export async function respondWebSession(
   wsId: string,
   sessionId: string,
   requestId: string,
   optionId: string,
+  text?: string,
 ): Promise<WebSessionSnapshot> {
-  return webSessionMutation(webSessionUrl(wsId, sessionId, '/respond'), 'respond', { requestId, optionId });
+  return webSessionMutation(webSessionUrl(wsId, sessionId, '/respond'), 'respond', { requestId, optionId, ...(text !== undefined ? { text } : {}) });
 }
 
 /** Remove a conversation from the active floor (kills its process first). */

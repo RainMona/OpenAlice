@@ -37,6 +37,10 @@ approval or cannot reopen an exact recorded conversation.
 | `claude-stream-json` | `claude` | `-p --input-format stream-json --output-format stream-json --include-partial-messages --permission-prompt-tool stdio` | `control_request` `can_use_tool`; answered with allow/deny | `--session-id <uuid>` chosen by the adapter |
 | `codex-app-server` | `codex` | `codex app-server --listen stdio://` with MCP registration, `approvalPolicy: on-request`, `sandbox: workspace-write` | `item/commandExecution/requestApproval`, `item/fileChange/requestApproval` (answered with a `decision` enum), `item/permissions/requestApproval` (answered with the granted `permissions` profile + `scope`), `item/tool/requestUserInput` | `thread/start`; resume via `thread/resume` |
 
+If ACP does not advertise `loadSession`, opening an existing Session fails with
+terminal guidance and preserves its native ID. Never replace its transcript
+with `session/new`; only a separate fresh Session may allocate a new ID.
+
 The Web surface never resumes "last": it reopens the exact recorded native id
 or starts a fresh conversation the transport reports back, so the Session's
 `resumeId` binds to one native transcript exactly as PTY discovery does.
@@ -87,8 +91,11 @@ components, labels) use "Web". User-facing copy says "Web", never "WebPi".
   running headless turn, disposes a PTY on the same record, starts the host.
 - `GET /web?revision=` — snapshot or `{ unchanged: true }`.
 - `POST /web/prompt`, `POST /web/abort` — turn control.
-- `POST /web/respond { requestId, optionId }` — answers one request; the
-  transport validates the option id and fails with `web_respond_failed`.
+- `POST /web/respond { requestId, optionId, text? }` — answers one request; the
+  transport validates the option id and fails with `web_respond_failed`. For a
+  question with `allowText`, send `optionId: ""` and nonblank `text` to answer
+  freely. Permission requests reject text answers. Secret questions use a masked
+  field. Cancelling a turn clears the entire pending question sequence.
 
 Switching a running Web Session to the TUI stops the Web process first; the
 reverse disposes the PTY. Exactly one process may own a Session record.

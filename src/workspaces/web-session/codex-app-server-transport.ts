@@ -42,6 +42,7 @@ export class CodexAppServerTransport implements WebSessionTransport {
   private threadId: string | null
   private turnId: string | null = null
   private requestSeq = 0
+  private cancellationEpoch = 0
 
   constructor(private readonly ctx: WebTransportContext) {
     this.threadId = ctx.input.nativeSessionId ?? null
@@ -103,16 +104,18 @@ export class CodexAppServerTransport implements WebSessionTransport {
     await this.peer.request('turn/interrupt', { threadId: this.threadId, turnId: this.turnId })
   }
 
-  async respond(requestId: string, optionId: string): Promise<void> {
+  async respond(requestId: string, optionId: string, text?: string): Promise<void> {
     const request = this.ctx.state.requests.find((r) => r.id === requestId)
     const pending = this.approvals.get(requestId)
     if (!request || !pending) throw new Error(`no pending request ${requestId}`)
-    if (!request.options.some((option) => option.id === optionId)) {
+    const textAnswer = text !== undefined && request.kind === 'question' && request.allowText && optionId === '' && text.trim()
+    if (text !== undefined && !textAnswer) throw new Error('Invalid text answer')
+    if (!textAnswer && !request.options.some((option) => option.id === optionId)) {
       throw new Error(`option ${optionId} is not offered by request ${requestId}`)
     }
     this.approvals.delete(requestId)
     this.ctx.state.removeRequest(requestId)
-    pending.answer(pending.respondWith(optionId))
+    pending.answer(pending.respondWith(textAnswer ? text! : optionId))
   }
 
   dispose(): void {
@@ -359,6 +362,7 @@ export class CodexAppServerTransport implements WebSessionTransport {
   private async userInput(params: JsonObject): Promise<unknown> {
     const questions = Array.isArray(params['questions']) ? params['questions'].filter(isJsonObject) : []
     const answers: Record<string, { answers: string[] }> = {}
+    const epoch = this.cancellationEpoch
     for (const question of questions) {
       const questionId = stringOrNull(question['id']) ?? `q${Object.keys(answers).length}`
       const options = Array.isArray(question['options'])
@@ -372,8 +376,11 @@ export class CodexAppServerTransport implements WebSessionTransport {
         kind: 'question',
         title: stringOrNull(question['header']) ?? 'Codex has a question',
         description: stringOrNull(question['question']) ?? '',
-        options: options.length > 0 ? options : [{ id: '', label: 'Continue without an answer', tone: 'neutral' }],
+        options,
+        allowText: true,
+        secret: question['isSecret'] === true,
       }, (optionId) => optionId, '')
+      if (epoch !== this.cancellationEpoch) return { answers: {} }
       answers[questionId] = { answers: typeof choice === 'string' && choice ? [choice] : [] }
     }
     return { answers }
@@ -393,6 +400,7 @@ export class CodexAppServerTransport implements WebSessionTransport {
   }
 
   private cancelApprovals(): void {
+    this.cancellationEpoch += 1
     for (const [id, pending] of this.approvals) {
       this.approvals.delete(id)
       this.ctx.state.removeRequest(id)

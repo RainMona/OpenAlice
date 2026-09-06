@@ -56,8 +56,8 @@ export function useWebConversation(wsId: string, sessionId: string) {
     refresh,
     send: async (message: string) => { accept(await promptWebSession(wsId, sessionId, message)) },
     stop: async () => { accept(await abortWebSession(wsId, sessionId)) },
-    respond: async (requestId: string, optionId: string) => {
-      accept(await respondWebSession(wsId, sessionId, requestId, optionId))
+    respond: async (requestId: string, optionId: string, text?: string) => {
+      accept(await respondWebSession(wsId, sessionId, requestId, optionId, text))
     },
   }
 }

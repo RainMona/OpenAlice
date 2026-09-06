@@ -39,3 +39,7 @@ endpoints that need real handlers. Then:
 - Scripted timelines for the remaining event-driven surfaces.
 - Richer multi-turn Web recordings and explicit scenario selection.
 - In-memory mutation coverage beyond Quick Chat (create-then-reload survives).
+
+In a Codex Web conversation, send "Ask me for a project name" to exercise the
+free-text question card and response path. Other prompts retain the permission
+card scenario.

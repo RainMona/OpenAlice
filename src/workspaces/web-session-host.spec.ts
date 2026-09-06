@@ -294,6 +294,22 @@ describe('WebSessionHost with the acp transport', () => {
     expect(process.received.find((c) => c['id'] === 'srv-1')).toMatchObject({ result: { outcome: { outcome: 'selected', optionId: 'allow-once' } } })
   })
 
+  it('refuses unsupported restore without creating or rebinding a native session', async () => {
+    const process = acpProcess({ loadSession: false })
+    const bind = vi.fn()
+    const host = new WebSessionHost(logger, { onNativeSessionId: bind }, () => process as never)
+    await expect(host.start({ ...acpInput, nativeSessionId: 'ses_old' })).rejects.toThrow(/terminal/)
+    expect(process.received.some((frame) => frame['method'] === 'session/new')).toBe(false)
+    expect(bind).not.toHaveBeenCalled()
+    expect(host.has('record-1')).toBe(false)
+  })
+
+  it('still creates fresh sessions when ACP cannot load history', async () => {
+    const host = new WebSessionHost(logger, {}, () => acpProcess({ loadSession: false }) as never)
+    expect((await host.start(acpInput)).nativeSessionId).toBe('ses_new')
+    await host.stopAll()
+  })
+
   it('reloads a known session and replays its history', async () => {
     const host = new WebSessionHost(logger, {}, () => acpProcess() as never)
     const started = await host.start({ ...acpInput, nativeSessionId: 'ses_old' })
@@ -552,5 +568,58 @@ describe('WebSessionHost with the codex-app-server transport', () => {
     expect(snapshot.requests).toEqual([])
     expect(snapshot.phase).toBe('idle')
     expect(texts(snapshot).at(-1)).toBe('notice:Turn interrupted.')
+  })
+})
+
+
+describe('Codex question answers', () => {
+  async function setup() {
+    const process = codexProcess()
+    const host = new WebSessionHost(logger, {}, () => process as never)
+    await host.start(input({ agent: 'codex', wire: 'codex-app-server', command: ['codex', 'app-server'] }))
+    process.line({ id: 'questions', method: 'item/tool/requestUserInput', params: { questions: [
+      { id: 'name', header: 'Project name', question: 'What name?', options: null },
+      { id: 'style', header: 'Style', question: 'Which style?', options: [{ label: 'Simple' }], isOther: true },
+    ] } })
+    await settle()
+    return { process, host }
+  }
+
+  it('round-trips free text and then a selected option', async () => {
+    const { process, host } = await setup()
+    const first = host.get('record-1')!.requests[0]!
+    expect(first).toMatchObject({ allowText: true, options: [] })
+    await expect(host.respond('record-1', first.id, '', '  ')).rejects.toThrow(/text/)
+    expect(host.get('record-1')!.requests).toHaveLength(1)
+    await host.respond('record-1', first.id, '', 'Alice research')
+    await settle()
+    await host.respond('record-1', host.get('record-1')!.requests[0]!.id, 'Simple')
+    await settle()
+    expect(process.received.find((frame) => frame['id'] === 'questions')).toMatchObject({ result: { answers: {
+      name: { answers: ['Alice research'] }, style: { answers: ['Simple'] },
+    } } })
+    await host.stopAll()
+  })
+
+  it('does not enqueue later questions when the turn is cancelled', async () => {
+    const { process, host } = await setup()
+    process.line({ method: 'turn/completed', params: { turn: { id: 't', status: 'interrupted' } } })
+    await settle()
+    expect(host.get('record-1')!.requests).toEqual([])
+    expect(host.get('record-1')!.phase).toBe('idle')
+    expect(process.received.find((frame) => frame['id'] === 'questions')).toMatchObject({ result: { answers: {} } })
+    await host.stopAll()
+  })
+
+  it('rejects text answers to permission requests without consuming the request', async () => {
+    const process = codexProcess({ permissions: true })
+    const host = new WebSessionHost(logger, {}, () => process as never)
+    await host.start(input({ agent: 'codex', wire: 'codex-app-server', command: ['codex', 'app-server'] }))
+    await host.prompt('record-1', 'test')
+    await settle()
+    const request = host.get('record-1')!.requests[0]!
+    await expect(host.respond('record-1', request.id, 'grant', 'yes')).rejects.toThrow(/text/)
+    expect(host.get('record-1')!.requests).toHaveLength(1)
+    await host.stopAll()
   })
 })

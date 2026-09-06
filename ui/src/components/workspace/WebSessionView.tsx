@@ -63,6 +63,7 @@ function WebSession({ wsId, sessionId, agent, agents, label, headerActions, onSe
           <div><strong>Compacting conversation context</strong><span>{agentLabel} is summarizing older history. Sending will resume when the compact finishes.</span></div>
         </div>}
         {activeRequest && <ConversationRequestCard
+          key={activeRequest.id}
           request={activeRequest}
           queued={requests.length - 1}
           respond={session.respond}
@@ -92,6 +93,8 @@ function presentRequest(request: WebPermissionRequest): ConversationRequest {
       },
     } : {}),
     options: request.options,
+    allowText: request.allowText,
+    secret: request.secret,
   }
 }
 

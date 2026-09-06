@@ -1736,9 +1736,14 @@ describe('Web surface routes', () => {
     const { app, web } = buildWeb();
     const result = await post(app, `/ws-1/sessions/${TOKEN}/web/respond`, { requestId: 'acp-7', optionId: 'allow_once' });
     expect(result.status).toBe(200);
-    expect(web.respond).toHaveBeenCalledWith(TOKEN, 'acp-7', 'allow_once');
+    expect(web.respond).toHaveBeenCalledWith(TOKEN, 'acp-7', 'allow_once', undefined);
     const bad = await post(app, `/ws-1/sessions/${TOKEN}/web/respond`, { requestId: 'acp-7' });
     expect(bad.status).toBe(400);
+    const answer = await post(app, `/ws-1/sessions/${TOKEN}/web/respond`, { requestId: 'q1', optionId: '', text: 'Alice' });
+    expect(answer.status).toBe(200);
+    expect(web.respond).toHaveBeenCalledWith(TOKEN, 'q1', '', 'Alice');
+    const invalid = await post(app, `/ws-1/sessions/${TOKEN}/web/respond`, { requestId: 'q1', optionId: '', text: 123 });
+    expect(invalid.status).toBe(400);
   });
 
   it('returns a tiny unchanged response when the browser already has the revision', async () => {

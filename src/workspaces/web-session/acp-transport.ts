@@ -60,7 +60,7 @@ export class AcpTransport implements WebSessionTransport {
         this.builder.endTurn()
       } else {
         if (this.sessionId) {
-          this.builder.notice(`${this.ctx.input.agent} cannot reload session ${this.sessionId} over ACP; a new native session was started.`)
+          throw new Error(`${this.ctx.input.agent} cannot reopen this conversation over ACP. Open the existing Session in the terminal, or create a separate new Session.`)
         }
         const created = await this.peer.request('session/new', params)
         const id = isJsonObject(created) ? stringOrNull(created['sessionId']) : null
