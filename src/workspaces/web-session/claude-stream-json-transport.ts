@@ -53,11 +53,18 @@ export class ClaudeStreamJsonTransport implements WebSessionTransport {
     this.ctx.state.error = null
     this.builder.user(text)
     this.ctx.state.setPhase('working')
-    await this.ctx.channel.send({
-      type: 'user',
-      message: { role: 'user', content: [{ type: 'text', text }] },
-      ...(this.ctx.state.nativeSessionId ? { session_id: this.ctx.state.nativeSessionId } : {}),
-    })
+    try {
+      await this.ctx.channel.send({
+        type: 'user',
+        message: { role: 'user', content: [{ type: 'text', text }] },
+        ...(this.ctx.state.nativeSessionId ? { session_id: this.ctx.state.nativeSessionId } : {}),
+      })
+    } catch (error) {
+      this.turnActive = false
+      this.ctx.state.error = error instanceof Error ? error.message : String(error)
+      this.ctx.state.setPhase(this.ctx.channel.closed ? 'failed' : 'idle')
+      throw error
+    }
   }
 
   async abort(): Promise<void> {

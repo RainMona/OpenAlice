@@ -87,7 +87,11 @@ inherited from the shared primitives.
 - [x] Service/routes: `/web/*`, `respond`, native-id binding, capability checks
 - [x] UI: generic hook/presenter/view, permission cards, capability gating, demo
 - [x] Owner guide ([[docs/web-conversation-surface.md]]) + doc updates
-- [ ] Live acceptance against each installed runtime (see verification)
+- [x] Real-binary handshake and prompt-path smoke for every wire (see
+  verification); fixed the Codex enum casing, permission-response shape, and
+  Pi rejected-prompt phase it uncovered
+- [ ] Credentialed live acceptance per runtime: tool-using prompt, answer the
+  permission card, stop mid-turn, reopen in the TUI (see verification)
 
 ## Verification
 
@@ -95,10 +99,24 @@ inherited from the shared primitives.
 - Transport specs drive fake child processes over stdio for every wire.
 - Demo route (`pnpm -F open-alice-ui dev:demo`) walks open → prompt →
   permission request → respond → stop for a non-Pi runtime.
-- Live runtimes are not available in the authoring environment. Before
-  promotion, open one Session per installed runtime, send a prompt that needs
-  a tool, answer the permission card, stop mid-turn, and reopen the same
-  Session in the TUI to confirm the native transcript is shared.
+- Real-binary smoke (done once with `@earendil-works/pi-coding-agent` 0.85.1,
+  `opencode-ai` 1.18.29, `@openai/codex` 0.153.4, `@anthropic-ai/claude-code`
+  2.1.263 installed under a throwaway `HOME`, driving `WebSessionHost` with the
+  argv each adapter composes):
+  - every wire completes its handshake (`pi-rpc` `get_state`, ACP
+    `initialize`→`session/new`, Codex `initialize`→`thread/start`, Claude
+    stays live and binds the session id on `system/init`);
+  - without credentials, Pi/Codex/Claude each surface the runtime's own
+    auth error as `snapshot.error` and return to `idle` instead of sticking in
+    `working`;
+  - OpenCode's bundled free model completed a real turn over ACP (user →
+    thinking → text), so that wire is accepted end to end.
+  - Codex request/response shapes were checked against
+    `codex app-server generate-json-schema` rather than memory.
+- Credentialed acceptance still needs a maintainer machine: per runtime, open
+  one Session in Web, send a prompt that needs a tool, answer the card, stop
+  mid-turn, then reopen the same Session in the TUI and confirm the native
+  transcript is shared.
 
 ## Completion
 

@@ -86,7 +86,7 @@ function texts(snapshot: WebSessionSnapshot | null): string[] {
 
 // ── pi-rpc ─────────────────────────────────────────────────────────────────
 
-function piRpcProcess(state: Json = {}): FakeProcess {
+function piRpcProcess(state: Json = {}, options: { rejectPrompt?: string } = {}): FakeProcess {
   let messages: unknown[] = []
   const rpcState = { sessionId: 'native-pi', isStreaming: false, isCompacting: false, ...state }
   return new FakeProcess((command, self) => {
@@ -94,6 +94,10 @@ function piRpcProcess(state: Json = {}): FakeProcess {
     const type = command['type']
     if (type === 'get_state') self.line({ type: 'response', id, command: type, success: true, data: { ...rpcState, messageCount: messages.length } })
     if (type === 'get_messages') self.line({ type: 'response', id, command: type, success: true, data: { messages } })
+    if (type === 'prompt' && options.rejectPrompt) {
+      self.line({ type: 'response', id, command: type, success: false, error: options.rejectPrompt })
+      return
+    }
     if (type === 'prompt') {
       const user = { role: 'user', content: command['message'] }
       const assistant = { role: 'assistant', content: [{ type: 'text', text: 'hello' }] }
@@ -160,6 +164,17 @@ describe('WebSessionHost with the pi-rpc transport', () => {
     rpc.line({ type: 'agent_settled' })
     await settle(10)
     expect(host.get('record-1')?.phase).toBe('idle')
+  })
+
+  it('returns to idle with the reason when Pi rejects a prompt before the turn starts', async () => {
+    const rpc = piRpcProcess({}, { rejectPrompt: 'No API key found for the selected model.' })
+    const host = new WebSessionHost(logger, {}, () => rpc as never)
+    await host.start(input({}))
+    await expect(host.prompt('record-1', 'hi')).rejects.toThrow('No API key found')
+    const snapshot = host.get('record-1')!
+    expect(snapshot.phase).toBe('idle')
+    expect(snapshot.error).toBe('No API key found for the selected model.')
+    expect(snapshot.messages).toEqual([])
   })
 
   it('marks the session failed when the process dies unexpectedly', async () => {
@@ -389,12 +404,31 @@ describe('WebSessionHost with the claude-stream-json transport', () => {
 
 // ── codex-app-server ───────────────────────────────────────────────────────
 
-function codexProcess(options: { history?: boolean } = {}): FakeProcess {
+function codexProcess(options: { history?: boolean; permissions?: boolean } = {}): FakeProcess {
   return new FakeProcess((command, self) => {
     const id = command['id']
     const method = command['method']
     const params = (command['params'] ?? {}) as Json
     if (method === 'initialize') { self.line({ id, result: { userAgent: 'codex' } }); return }
+    if (options.permissions) {
+      if (method === 'thread/start') { self.line({ id, result: { thread: { id: 'thr_perm', turns: [] } } }); return }
+      if (method === 'turn/start') {
+        self.line({ id, result: { turn: { id: 'turn_p', status: 'inProgress', items: [] } } })
+        self.line({ id: 'perm-1', method: 'item/permissions/requestApproval', params: {
+          itemId: 'p1', threadId: 'thr_perm', turnId: 'turn_p', cwd: '/w', reason: 'needs to reach the registry',
+          permissions: { network: { enabled: true } },
+        } })
+        return
+      }
+      if (command['id'] === 'perm-1' && 'result' in command) {
+        self.line({ method: 'turn/completed', params: { turn: { id: 'turn_p', status: 'completed' } } })
+      }
+      if (method === 'turn/interrupt') {
+        self.line({ id, result: {} })
+        self.line({ method: 'turn/completed', params: { turn: { id: 'turn_p', status: 'interrupted' } } })
+      }
+      return
+    }
     if (method === 'thread/start') { self.line({ id, result: { thread: { id: 'thr_new', turns: [] } } }); return }
     if (method === 'thread/resume') {
       self.line({ id, result: { thread: { id: params['threadId'], turns: options.history ? [{
@@ -443,7 +477,7 @@ describe('WebSessionHost with the codex-app-server transport', () => {
     expect(started.nativeSessionId).toBe('thr_new')
     expect(onNativeSessionId).toHaveBeenCalledWith('record-1', 'thr_new')
     expect(process.received.map((c) => c['method'])).toEqual(['initialize', 'initialized', 'thread/start'])
-    expect(process.received[2]).toMatchObject({ params: { cwd: '/tmp/workspace', approvalPolicy: 'onRequest', sandbox: 'workspaceWrite' } })
+    expect(process.received[2]).toMatchObject({ params: { cwd: '/tmp/workspace', approvalPolicy: 'on-request', sandbox: 'workspace-write' } })
 
     await host.prompt('record-1', 'run the tests')
     await settle()
@@ -460,6 +494,42 @@ describe('WebSessionHost with the codex-app-server transport', () => {
     expect(done.phase).toBe('idle')
     expect(texts(done)).toEqual(['user:run the tests', 'assistant:Running tests.|[shell]', 'toolResult:shell:ok'])
     expect(process.received.find((c) => c['id'] === 'approval-1')).toEqual({ id: 'approval-1', result: { decision: 'accept' } })
+  })
+
+  it('answers permission requests with the granted profile, not a decision enum', async () => {
+    const process = codexProcess({ permissions: true })
+    const host = new WebSessionHost(logger, {}, () => process as never)
+    await host.start(codexInput)
+    await host.prompt('record-1', 'install deps')
+    await settle()
+    const waiting = host.get('record-1')!
+    expect(waiting.phase).toBe('awaiting-input')
+    expect(waiting.requests[0]).toMatchObject({
+      title: 'Grant additional permissions',
+      description: 'needs to reach the registry',
+      tool: { name: 'request_permissions', input: { network: { enabled: true } } },
+      options: [{ id: 'grant', tone: 'allow' }, { id: 'grantForSession', tone: 'allow' }, { id: 'decline', tone: 'deny' }],
+    })
+    await host.respond('record-1', waiting.requests[0]!.id, 'grantForSession')
+    await settle()
+    expect(process.received.find((c) => c['id'] === 'perm-1')).toEqual({
+      id: 'perm-1',
+      result: { permissions: { network: { enabled: true } }, scope: 'session' },
+    })
+    expect(host.get('record-1')!.phase).toBe('idle')
+  })
+
+  it('cancels a pending permission request with an empty grant when the turn ends first', async () => {
+    const process = codexProcess({ permissions: true })
+    const host = new WebSessionHost(logger, {}, () => process as never)
+    await host.start(codexInput)
+    await host.prompt('record-1', 'install deps')
+    await settle()
+    expect(host.get('record-1')!.requests).toHaveLength(1)
+    await host.abort('record-1')
+    await settle()
+    expect(process.received.find((c) => c['id'] === 'perm-1')).toEqual({ id: 'perm-1', result: { permissions: {} } })
+    expect(host.get('record-1')!.requests).toEqual([])
   })
 
   it('replays thread history on resume', async () => {

@@ -40,7 +40,16 @@ export class PiRpcTransport implements WebSessionTransport {
     if (trimmed.length > MAX_PROMPT_CHARS) throw new Error(`prompt exceeds ${MAX_PROMPT_CHARS} characters`)
     this.ctx.state.error = null
     this.ctx.state.setPhase('working')
-    await this.request('prompt', { message: trimmed })
+    try {
+      await this.request('prompt', { message: trimmed })
+    } catch (error) {
+      // Pi rejects prompts synchronously for missing credentials or a bad
+      // model; the turn never started, so fall back to idle and keep the
+      // reason visible in the snapshot as well as in the thrown error.
+      this.ctx.state.error = error instanceof Error ? error.message : String(error)
+      this.ctx.state.setPhase(this.ctx.channel.closed ? 'failed' : 'idle')
+      throw error
+    }
     this.scheduleRefresh(50)
   }
 

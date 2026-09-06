@@ -24,6 +24,8 @@ type Answer = (value: unknown) => void
 interface PendingApproval {
   readonly answer: Answer
   readonly respondWith: (optionId: string) => unknown
+  /** Payload sent when the turn ends or stops before the browser answers. */
+  readonly cancelWith: unknown
 }
 
 const DEFAULT_DECISIONS: readonly WebRequestOption[] = [
@@ -56,10 +58,12 @@ export class CodexAppServerTransport implements WebSessionTransport {
       capabilities: {},
     })
     await this.peer.notify('initialized', {})
+    // `AskForApproval` / `SandboxMode` are kebab-case wire enums (verified
+    // against `codex app-server generate-json-schema`, 0.153.x).
     const options = {
       cwd: this.ctx.input.cwd,
-      approvalPolicy: 'onRequest',
-      sandbox: 'workspaceWrite',
+      approvalPolicy: 'on-request',
+      sandbox: 'workspace-write',
       ...(this.ctx.input.model ? { model: this.ctx.input.model } : {}),
     }
     const result = this.threadId
@@ -86,6 +90,7 @@ export class CodexAppServerTransport implements WebSessionTransport {
       threadId: this.threadId,
       input: [{ type: 'text', text }],
     }).catch((error: Error) => {
+      this.ctx.state.error = error.message
       this.ctx.state.setPhase('idle')
       throw error
     })
@@ -299,15 +304,26 @@ export class CodexAppServerTransport implements WebSessionTransport {
           description: stringOrNull(p['reason']) ?? 'Codex wants to edit files in the workspace.',
           tool: { name: 'apply_patch', input: { itemId: p['itemId'], grantRoot: p['grantRoot'] } },
         })
-      case 'item/permissions/requestApproval':
-        return this.approval(p, {
+      case 'item/permissions/requestApproval': {
+        // Unlike command/file approvals, this request answers with the granted
+        // profile (`{ permissions, scope }`), not a decision enum. Granting
+        // echoes the requested profile; declining grants nothing.
+        const requested = isJsonObject(p['permissions']) ? p['permissions'] : {}
+        return this.enqueue({
+          kind: 'permission',
           title: 'Grant additional permissions',
-          description: 'Codex requests network or filesystem access beyond its sandbox.',
-          tool: { name: 'request_permissions', input: p['permissions'] ?? p },
-        }, [
-          { id: 'accept', label: 'Grant', tone: 'allow' },
-          { id: 'decline', label: 'Decline', tone: 'deny' },
-        ])
+          description: stringOrNull(p['reason']) ?? 'Codex requests network or filesystem access beyond its sandbox.',
+          tool: { name: 'request_permissions', input: requested },
+          options: [
+            { id: 'grant', label: 'Grant for this turn', tone: 'allow' },
+            { id: 'grantForSession', label: 'Grant for this session', tone: 'allow' },
+            { id: 'decline', label: 'Decline', tone: 'deny' },
+          ],
+        }, (optionId) => optionId === 'decline'
+          ? { permissions: {} }
+          : { permissions: requested, scope: optionId === 'grantForSession' ? 'session' : 'turn' },
+        { permissions: {} })
+      }
       case 'item/tool/requestUserInput':
         return this.userInput(p)
       default: {
@@ -337,7 +353,7 @@ export class CodexAppServerTransport implements WebSessionTransport {
       description: shape.description,
       ...(shape.tool ? { tool: shape.tool } : {}),
       options,
-    }, (optionId) => ({ decision: optionId }))
+    }, (optionId) => ({ decision: optionId }), { decision: 'cancel' })
   }
 
   private async userInput(params: JsonObject): Promise<unknown> {
@@ -357,7 +373,7 @@ export class CodexAppServerTransport implements WebSessionTransport {
         title: stringOrNull(question['header']) ?? 'Codex has a question',
         description: stringOrNull(question['question']) ?? '',
         options: options.length > 0 ? options : [{ id: '', label: 'Continue without an answer', tone: 'neutral' }],
-      }, (optionId) => optionId)
+      }, (optionId) => optionId, '')
       answers[questionId] = { answers: typeof choice === 'string' && choice ? [choice] : [] }
     }
     return { answers }
@@ -366,11 +382,12 @@ export class CodexAppServerTransport implements WebSessionTransport {
   private enqueue(
     request: Omit<WebPermissionRequest, 'id' | 'createdAt'>,
     respondWith: (optionId: string) => unknown,
+    cancelWith: unknown,
   ): Promise<unknown> {
     this.requestSeq += 1
     const id = `codex-${this.requestSeq}`
     return new Promise<unknown>((resolve) => {
-      this.approvals.set(id, { answer: resolve, respondWith })
+      this.approvals.set(id, { answer: resolve, respondWith, cancelWith })
       this.ctx.state.addRequest({ ...request, id, createdAt: Date.now() })
     })
   }
@@ -379,7 +396,7 @@ export class CodexAppServerTransport implements WebSessionTransport {
     for (const [id, pending] of this.approvals) {
       this.approvals.delete(id)
       this.ctx.state.removeRequest(id)
-      pending.answer({ decision: 'cancel' })
+      pending.answer(pending.cancelWith)
     }
   }
 }

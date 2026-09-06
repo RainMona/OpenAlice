@@ -35,11 +35,22 @@ approval or cannot reopen an exact recorded conversation.
 | `pi-rpc` | `pi`, `omp` | `--mode rpc` JSONL; Pi additionally `--approve`, omp `--auto-approve` | none in RPC mode; launch-time approval | yes (RPC allocates the id) |
 | `acp` | `cursor`, `grok`, `opencode` | Agent Client Protocol JSON-RPC over stdio (`cursor-agent acp`, `grok agent stdio`, `opencode acp`) | `session/request_permission` with the agent's own options | `session/new`; resume via `session/load` when advertised |
 | `claude-stream-json` | `claude` | `-p --input-format stream-json --output-format stream-json --include-partial-messages --permission-prompt-tool stdio` | `control_request` `can_use_tool`; answered with allow/deny | `--session-id <uuid>` chosen by the adapter |
-| `codex-app-server` | `codex` | `codex app-server --listen stdio://` with MCP registration and `workspace-write` sandbox | `item/commandExecution/requestApproval`, `item/fileChange/requestApproval` | `thread/start`; resume via `thread/resume` |
+| `codex-app-server` | `codex` | `codex app-server --listen stdio://` with MCP registration, `approvalPolicy: on-request`, `sandbox: workspace-write` | `item/commandExecution/requestApproval`, `item/fileChange/requestApproval` (answered with a `decision` enum), `item/permissions/requestApproval` (answered with the granted `permissions` profile + `scope`), `item/tool/requestUserInput` | `thread/start`; resume via `thread/resume` |
 
 The Web surface never resumes "last": it reopens the exact recorded native id
 or starts a fresh conversation the transport reports back, so the Session's
 `resumeId` binds to one native transcript exactly as PTY discovery does.
+
+Codex wire enums (`AskForApproval`, `SandboxMode`) are kebab-case and its
+server-request response shapes differ per method; verify against
+`codex app-server generate-json-schema --out <dir>` from the installed binary
+before changing the transport rather than inferring from TypeScript-style
+names.
+
+Every transport must leave the snapshot in `idle` (or `failed` when the process
+is gone) with `error` set when a prompt is rejected before the turn starts —
+for example missing credentials. A snapshot stuck in `working` with no turn in
+flight is a transport bug, not a runtime condition.
 
 ## Neutral model
 
