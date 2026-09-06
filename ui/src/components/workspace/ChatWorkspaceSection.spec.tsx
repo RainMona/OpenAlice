@@ -19,7 +19,7 @@ const actions = vi.hoisted(() => ({
   openOrFocus: vi.fn(),
   pauseSession: vi.fn(async () => undefined),
   resumeSession: vi.fn(async () => undefined),
-  openWebPiSession: vi.fn(async () => undefined),
+  openWebSession: vi.fn(async () => undefined),
   openHeadlessRun: vi.fn(async () => undefined),
   requestDeleteSession: vi.fn(),
   setSessionPresence: vi.fn(async () => undefined),
@@ -135,7 +135,7 @@ function workspaceContext(
     quickChat: vi.fn(async () => 'session-1'),
     pauseSession: actions.pauseSession,
     resumeSession: actions.resumeSession,
-    openWebPiSession: actions.openWebPiSession,
+    openWebSession: actions.openWebSession,
     requestDeleteSession: actions.requestDeleteSession,
     setSessionPresence: actions.setSessionPresence,
     setSessionDisplayName: actions.setSessionDisplayName,
@@ -203,7 +203,7 @@ describe('ChatWorkspaceSection actions', () => {
     expect(screen.queryByRole('button', { name: 'Other office conversation' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Conversation 1' }))
     expect(actions.resumeSession).toHaveBeenCalledWith(current.id, current.sessions[0].id, 'chat')
-    expect(actions.openWebPiSession).not.toHaveBeenCalled()
+    expect(actions.openWebSession).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'View all 9 conversations' })).toBeTruthy()
   })
 
@@ -764,7 +764,7 @@ describe('ChatWorkspaceSection actions', () => {
     expect(onNavigate).toHaveBeenCalledTimes(1)
 
     fireEvent.click(managerUi.getByRole('button', { name: 'Resume Coordinate owners' }))
-    expect(actions.openWebPiSession).toHaveBeenCalledWith(MANAGER_WORKSPACE_ID, 'manager-pi')
+    expect(actions.openWebSession).toHaveBeenCalledWith(MANAGER_WORKSPACE_ID, 'manager-pi')
     expect(onNavigate).toHaveBeenCalledTimes(2)
 
     const pausedRow = pausedSession.parentElement

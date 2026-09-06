@@ -65,7 +65,7 @@ export const ja: Resources = {
     badge: 'デモ',
     compact: '記録済みプレビュー',
     description:
-      '記録済みデータを使った OpenAlice のスナップショットを表示しています。変更は保存されず、WebPi の応答はシミュレーションです。',
+      '記録済みデータを使った OpenAlice のスナップショットを表示しています。変更は保存されず、Web の応答はシミュレーションです。',
     install: 'OpenAlice をインストール',
   },
   issues: {
@@ -626,7 +626,7 @@ export const ja: Resources = {
       shared: '共有 Harness 動作',
       sharedDescription: 'これらのインストール単位の設定は Harness Workspace 全体に適用されます。',
       showHeadlessBorn: 'ヘッドレス生まれの Session を表示',
-      showHeadlessBornDescription: '既定はオフです。Issue や API から始まり、TUI / WebPi を一度も開いていない Session は Issue ページに残り、デスク名簿には出しません。',
+      showHeadlessBornDescription: '既定はオフです。Issue や API から始まり、TUI / Web を一度も開いていない Session は Issue ページに残り、デスク名簿には出しません。',
       showIssueAttached: 'Issue に紐づく Session を表示',
       showIssueAttachedDescription: '既定はオフです。有効にすると、通常の Issue が現在所有または使用している Session を共有デスク名簿に追加します。Connector チャットの Session は常に非表示です。',
       showUnverifiedReleases: '未検証の Harness リリースを表示',
@@ -1065,7 +1065,7 @@ export const ja: Resources = {
     runningInBackground: 'バックグラウンドで実行中',
     allConversationsRunning: '現在の会話はすべてバックグラウンドで実行中です。',
     headlessBusyTitle: 'この Session はバックグラウンドで実行中です',
-    headlessBusyDescription: '同じ会話履歴に二つの Agent プロセスが同時に書き込まないよう、OpenAlice は一度に一つのプロセスだけを Session に接続します。この実行が完了すると TUI または WebPi で開けます。',
+    headlessBusyDescription: '同じ会話履歴に二つの Agent プロセスが同時に書き込まないよう、OpenAlice は一度に一つのプロセスだけを Session に接続します。この実行が完了すると TUI または Web で開けます。',
     headlessBusyIssue: 'Issue {{issue}} から開始',
     headlessBusyAgent: '{{agent}} で実行中',
     recentAcrossWorkspaces: '全ワークスペースの最近の会話',

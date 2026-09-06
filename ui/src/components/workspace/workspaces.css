@@ -1296,7 +1296,7 @@ button.files-row:focus-visible {
   padding-inline: 14px;
 }
 
-.resume-cta-btn.is-webpi {
+.resume-cta-btn.is-web {
   background: color-mix(in srgb, var(--primary) 13%, var(--secondary));
   color: var(--foreground);
 }

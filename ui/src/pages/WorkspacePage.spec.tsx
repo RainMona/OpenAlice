@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   spawn: vi.fn(),
   openAgentConfig: vi.fn(),
   resumeSession: vi.fn(),
-  openWebPiSession: vi.fn(),
+  openWebSession: vi.fn(),
   refresh: vi.fn(),
   workspaceViewProps: vi.fn(),
   workspaces: [] as Workspace[],
@@ -27,7 +27,7 @@ vi.mock('../contexts/workspaces-context', () => ({
     spawn: mocks.spawn,
     openAgentConfig: mocks.openAgentConfig,
     resumeSession: mocks.resumeSession,
-    openWebPiSession: mocks.openWebPiSession,
+    openWebSession: mocks.openWebSession,
     refresh: mocks.refresh,
   }),
 }))
