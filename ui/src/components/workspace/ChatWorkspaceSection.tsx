@@ -279,7 +279,7 @@ export function ChatWorkspaceSection({
     if (row.headlessOccupying || !row.resumable) return
     rememberViewedWorkspace(row.workspaceId)
     if (row.session.surface === 'webpi') {
-      await ctx.openWebPiSession(row.workspaceId, row.session.id, source)
+      await ctx.openWebSession(row.workspaceId, row.session.id, source)
     } else {
       await ctx.resumeSession(row.workspaceId, row.session.id, source)
     }
@@ -542,7 +542,7 @@ export function ChatWorkspaceSection({
           onPauseSession={(sessionId) => void ctx.pauseSession(MANAGER_WORKSPACE_ID, sessionId)}
           onResumeSession={(sessionId, surface) => {
             if (surface === 'webpi') {
-              void ctx.openWebPiSession(MANAGER_WORKSPACE_ID, sessionId)
+              void ctx.openWebSession(MANAGER_WORKSPACE_ID, sessionId)
             } else {
               void ctx.resumeSession(MANAGER_WORKSPACE_ID, sessionId)
             }

@@ -345,10 +345,10 @@ authorize complete argv, prompts, credentials, or environment values in logs.
 
 Pi project trust follows the runtime boundary:
 
-- before TUI or WebPi startup, the Pi adapter records a genuinely undecided
+- before TUI or Web startup, the Pi adapter records a genuinely undecided
   OpenAlice-managed Workspace in the trust store used by that Pi process. This
   prevents a fresh Quick Chat from stalling behind a terminal-only trust
-  selector that WebPi cannot render;
+  selector that the Web surface cannot render;
 - an explicit saved allow or deny decision on the Workspace or its nearest
   parent remains authoritative. OpenAlice never flips that decision;
 - interactive argv does not receive the version-sensitive `--approve` flag.

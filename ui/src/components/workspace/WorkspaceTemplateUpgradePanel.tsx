@@ -179,7 +179,7 @@ export function WorkspaceTemplateUpgradePanel({
                       {t('workspace.upgradeBlockedSessionItem', {
                         name: session.name,
                         agent: session.agent,
-                        surface: session.surface === 'webpi' ? 'WebPi' : 'TUI',
+                        surface: session.surface === 'webpi' ? 'Web' : 'TUI',
                       })}
                     </li>
                   ))}

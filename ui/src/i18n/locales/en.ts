@@ -31,6 +31,7 @@ export const en = {
     noReadme: "There is no README.md in this Workspace yet. You can ask your agent to write an overview of its purpose and contents.",
     noGuide: "No Harness guide is available.",
   },
+  projectSetup: { connectPi: 'Connect a provider for Chat with Pi', title: 'Some workspaces need attention', description: 'Your project is ready. Retry preparing the remaining workspaces, or continue with the ones already available.', pending: 'Waiting for setup', preparing: 'Preparing…' },
   quickStart: { chooseHarness: 'Choose Harness' },
   nav: {
     quickStart: 'Quick Start',
@@ -75,7 +76,7 @@ export const en = {
     badge: 'Demo',
     compact: 'Recorded preview',
     description:
-      'You’re looking at a snapshot of OpenAlice with recorded data. Changes aren’t saved; WebPi replies are simulated.',
+      'You’re looking at a snapshot of OpenAlice with recorded data. Changes aren’t saved; Web replies are simulated.',
     install: 'Install OpenAlice',
   },
   issues: {
@@ -636,7 +637,7 @@ export const en = {
       shared: 'Shared Harness behavior',
       sharedDescription: 'These installation-level options apply across Harness Workspaces.',
       showHeadlessBorn: 'Show headless-born Sessions',
-      showHeadlessBornDescription: 'Off by default. Sessions that started from an Issue or API turn and have never opened a TUI or WebPi stay on the Issue page instead of the desk roster.',
+      showHeadlessBornDescription: 'Off by default. Sessions that started from an Issue or API turn and have never opened a TUI or Web conversation stay on the Issue page instead of the desk roster.',
       showIssueAttached: 'Show Issue-attached Sessions',
       showIssueAttachedDescription: 'Off by default. Enable this to add Sessions currently owned or occupied by ordinary Issues to the shared desk roster. Connector chat Sessions always stay hidden.',
       showUnverifiedReleases: 'Show unverified Harness releases',
@@ -1075,7 +1076,7 @@ export const en = {
     runningInBackground: 'Running in background',
     allConversationsRunning: 'All current conversations are still running in the background.',
     headlessBusyTitle: 'This Session is running in the background',
-    headlessBusyDescription: 'OpenAlice keeps one Agent process attached to a Session at a time so two processes cannot write to the same transcript. TUI and WebPi become available when this run finishes.',
+    headlessBusyDescription: 'OpenAlice keeps one Agent process attached to a Session at a time so two processes cannot write to the same transcript. TUI and Web become available when this run finishes.',
     headlessBusyIssue: 'Started by Issue {{issue}}',
     headlessBusyAgent: 'Running with {{agent}}',
     recentAcrossWorkspaces: 'Recent across Workspaces',

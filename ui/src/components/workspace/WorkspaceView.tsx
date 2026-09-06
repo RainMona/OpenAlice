@@ -10,7 +10,7 @@ import { FilesPanel } from './FilesPanel';
 import { ResumeCta } from './ResumeCta';
 import { formatRelativeTime } from '../../lib/intl';
 import { TerminalView } from './Terminal';
-import { WebPiView } from './WebPiView';
+import { WebSessionView } from './WebSessionView';
 import { useIsDesktop } from '../../live/use-is-desktop';
 import { useWorkspaceSidePanels } from '../../live/workspace-side-panels';
 import type { WorkspaceSource } from '../../tabs/types';
@@ -32,7 +32,7 @@ export interface WorkspaceViewProps {
   readonly sessions: readonly SessionRecord[];
   readonly agents?: readonly AgentInfo[];
   readonly label?: string;
-  /** Actions promoted into the live terminal or WebPi shared titlebar. */
+  /** Actions promoted into the live terminal or Web conversation shared titlebar. */
   readonly terminalHeaderActions?: ReactNode;
   readonly onSpawnFresh: () => void;
   readonly onResume: (sessionId: string) => Promise<void>;
@@ -44,7 +44,7 @@ export interface WorkspaceViewProps {
     resumeId: string,
     displayName: string | null,
   ) => Promise<void>;
-  readonly onOpenWebPi: (sessionId: string) => Promise<void>;
+  readonly onOpenWeb: (sessionId: string) => Promise<void>;
   /** Navigate to an already-running session without re-spawning it. Library
    *  rows call this for running entries; paused entries go through `onResume`. */
   readonly onSelectSession: (sessionId: string) => void;
@@ -121,7 +121,7 @@ export function WorkspaceView(props: WorkspaceViewProps): ReactElement {
               )
               : undefined}
             onResume={() => props.onResume(props.activeRecord!.id)}
-            onOpenWebPi={() => props.onOpenWebPi(props.activeRecord!.id)}
+            onOpenWeb={() => props.onOpenWeb(props.activeRecord!.id)}
           />
         )}
         {!showPausedCta &&
@@ -132,10 +132,12 @@ export function WorkspaceView(props: WorkspaceViewProps): ReactElement {
                 key={s.id}
                 className={`workspace-terminal-slot ${isActive ? 'is-active' : 'is-hidden'}`}
               >
-                {(s.surface ?? 'terminal') === 'webpi' && s.agent === 'pi' ? (
-                  <WebPiView
+                {(s.surface ?? 'terminal') === 'webpi' ? (
+                  <WebSessionView
                     wsId={props.wsId}
                     sessionId={s.id}
+                    agent={s.agent}
+                    {...(props.agents ? { agents: props.agents } : {})}
                     {...(props.label !== undefined ? { label: `${props.label} · ${s.name}` } : {})}
                     onSessionLost={props.onSessionLost}
                     headerActions={props.terminalHeaderActions}

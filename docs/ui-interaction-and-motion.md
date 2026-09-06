@@ -193,8 +193,28 @@ before rendering and supplies only supported send/stop actions. Missing actions
 do not produce fake controls. Reasoning, tool input/output, failed operations,
 and unknown payloads remain inspectable; failures expand their activity details.
 Presentation must not import runtime APIs, parse provider event discriminators,
-or fetch Workspace data. Pi's conversion lives in `webpi-presentation.ts` and
-its polling/commands in `useWebPiConversation`; `WebPiView` composes the adapter.
+or fetch Workspace data. The backend already projects every runtime wire (Pi
+RPC, ACP, Claude stream-json, Codex app-server) into one neutral message list;
+`web-presentation.ts` converts that list, `useWebConversation` owns
+polling/commands, and `WebSessionView` composes the adapter for any runtime
+whose `capabilities.web` is declared. Runtime identity is a presentation fact
+(placeholder, stop label, wire tooltip), never a branch on the protocol.
+
+Runtime requests (tool permissions, file-change approvals, questions) render in
+`ConversationRequestCard`, pinned above the composer in the `status` slot
+rather than inline in the transcript, so the pending decision cannot scroll
+away while it is the only way forward. Options come verbatim from the runtime
+and answer with one option id; `allow`/`deny`/`neutral` tones map to the shared
+button variants. While a request is pending the phase is `awaiting-input`: the
+composer stays in stop mode, the card is the primary action, and further
+requests are counted rather than stacked. Answer failures keep the card and
+surface the error inline. `notice` items are neutral system remarks between
+turns (stopped turn, mode change), not assistant prose.
+
+Launch affordances (Resume CTA "Open in Web", the Workspace header surface
+toggle, Manager Quick Start) gate on `agentSupportsWeb(agents, agent)`; a
+runtime without a structured protocol keeps its terminal without a dead button,
+and an unloaded runtime list hides the affordance rather than guessing.
 
 Pending sends keep and lock their draft until acknowledgement, reject repeated
 submission, and preserve the draft on failure. Enter respects IME composition;
@@ -495,3 +515,12 @@ For motion changes:
 
 Motion should be judged in the running UI. A class name or screenshot alone
 cannot prove timing, continuity, or pointer feedback.
+
+Web question cards keep the existing composer status placement. Text-capable
+questions show a labeled shared Textarea and an explicit Send answer button;
+offered options stay available above it. Secret questions use a masked field.
+The layout stacks vertically at narrow widths and does not steal focus.
+Permission cards remain option-only. A failed submission retains the draft,
+while a new request ID mounts a fresh card so answers do not leak between
+questions. This is owned by the shared ConversationRequestCard, not a
+runtime-specific presenter.

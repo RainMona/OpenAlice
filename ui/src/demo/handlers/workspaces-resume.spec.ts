@@ -8,7 +8,7 @@ import {
   DEMO_CHAT_WORKSPACE_ID,
   DEMO_MACRO_WORKSPACE_ID,
 } from '../fixtures/workspaces'
-import { resetDemoWorkspaceWebPiState, workspacesHandlers } from './workspaces'
+import { resetDemoWorkspaceWebState, workspacesHandlers } from './workspaces'
 
 const server = setupServer(...workspacesHandlers)
 const baseUrl = window.location.origin
@@ -16,7 +16,7 @@ const baseUrl = window.location.origin
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 afterEach(() => {
   server.resetHandlers()
-  resetDemoWorkspaceWebPiState()
+  resetDemoWorkspaceWebState()
 })
 afterAll(() => server.close())
 

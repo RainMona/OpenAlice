@@ -28,6 +28,7 @@ export const zhHant: Resources = {
     noReadme: "此工作區還沒有 README.md。你可以讓 Agent 撰寫一份說明，介紹它的用途和內容。",
     noGuide: "暫無 Harness 指南。",
   },
+  projectSetup: { connectPi: '為 Chat 設定 Pi 的 AI 提供方', title: '部分工作區尚未準備完成', description: '專案已建立。可以重試準備剩餘工作區，也可以先使用已就緒的工作區。', pending: '等待準備', preparing: '正在準備…' },
   quickStart: { chooseHarness: '選擇 Harness' },
   nav: {
     quickStart: 'Quick Start',
@@ -71,7 +72,7 @@ export const zhHant: Resources = {
   demoBanner: {
     badge: '示範',
     compact: '錄製預覽',
-    description: '你正在查看包含錄製資料的 OpenAlice 快照。變更不會儲存；WebPi 回覆為模擬產生。',
+    description: '你正在查看包含錄製資料的 OpenAlice 快照。變更不會儲存；Web 回覆為模擬產生。',
     install: '安裝 OpenAlice',
   },
   issues: {
@@ -632,7 +633,7 @@ export const zhHant: Resources = {
       shared: '共用 Harness 行為',
       sharedDescription: '這些安裝層級選項作用於所有 Harness Workspace。',
       showHeadlessBorn: '顯示無頭出身的 Session',
-      showHeadlessBornDescription: '預設關閉。從 Issue 或 API 跑起來、從未開過 TUI / WebPi 的 Session 留在 Issue 頁，不進桌子名冊。',
+      showHeadlessBornDescription: '預設關閉。從 Issue 或 API 跑起來、從未開過 TUI / Web 的 Session 留在 Issue 頁，不進桌子名冊。',
       showIssueAttached: '顯示掛靠 Issue 的 Session',
       showIssueAttachedDescription: '預設關閉。開啟後，普通 Issue 目前持有或佔用的 Session 會進入共享桌子名冊；Connector 聊天 Session 一律隱藏。',
       showUnverifiedReleases: '顯示未經認證的 Harness 版本',
@@ -1071,7 +1072,7 @@ export const zhHant: Resources = {
     runningInBackground: '背景執行中',
     allConversationsRunning: '目前對話都還在背景執行。',
     headlessBusyTitle: '這個 Session 正在背景執行',
-    headlessBusyDescription: '為避免兩個 Agent 行程同時寫入同一份對話記錄，OpenAlice 一次只允許一個行程占用 Session。此次任務結束後即可使用 TUI 或 WebPi 開啟。',
+    headlessBusyDescription: '為避免兩個 Agent 行程同時寫入同一份對話記錄，OpenAlice 一次只允許一個行程占用 Session。此次任務結束後即可使用 TUI 或 Web 開啟。',
     headlessBusyIssue: '由 Issue {{issue}} 啟動',
     headlessBusyAgent: '正在使用 {{agent}} 執行',
     recentAcrossWorkspaces: '全部工作區的最近對話',

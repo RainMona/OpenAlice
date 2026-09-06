@@ -141,6 +141,32 @@
 .conversation-reasoning-notes { display: grid; gap: 8px; margin: 0 0 7px; padding: 8px 10px; border-left: 2px solid color-mix(in srgb, var(--primary) 24%, var(--border)); color: color-mix(in srgb, var(--foreground) 82%, var(--muted-foreground)); font-size: 10px; }
 .conversation-reasoning pre { max-height: 220px; margin: 0 0 7px; overflow: auto; white-space: pre-wrap; font: 10px/1.5 var(--font-mono, monospace); }
 
+.conversation-message.is-notice { justify-content: center; margin: 0 0 18px; }
+.conversation-notice-body { max-width: 100%; padding: 4px 10px; border-radius: 999px; color: var(--muted-foreground); background: color-mix(in srgb, var(--secondary) 70%, transparent); font-size: 11px; line-height: 1.5; text-align: center; overflow-wrap: anywhere; }
+
+/* A runtime request is the live decision; the transcript stays a record. */
+.conversation-request { display: grid; gap: 9px; margin: 0 0 10px; padding: 12px 13px; border: 1px solid color-mix(in srgb, var(--primary) 34%, var(--border)); border-radius: 12px; background: color-mix(in srgb, var(--primary) 6%, var(--secondary)); box-shadow: 0 8px 24px color-mix(in srgb, var(--shadow-color) 6%, transparent); animation: conversation-detail-reveal 150ms ease-out both; }
+.conversation-request.is-question { border-color: color-mix(in srgb, var(--foreground) 18%, var(--border)); background: color-mix(in srgb, var(--secondary) 82%, transparent); }
+.conversation-request-header { display: flex; align-items: flex-start; gap: 9px; min-width: 0; }
+.conversation-request-icon { width: 26px; height: 26px; flex: 0 0 26px; display: grid; place-items: center; border-radius: 8px; color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); }
+.conversation-request.is-question .conversation-request-icon { color: var(--foreground); background: color-mix(in srgb, var(--border) 60%, transparent); }
+.conversation-request-heading { display: grid; gap: 1px; min-width: 0; }
+.conversation-request-kicker { display: inline-flex; align-items: center; gap: 6px; color: var(--muted-foreground); font-size: 10px; font-weight: 650; letter-spacing: .02em; text-transform: uppercase; }
+.conversation-request-queue { padding: 1px 6px; border-radius: 999px; color: var(--muted-foreground); background: color-mix(in srgb, var(--border) 70%, transparent); font-weight: 600; letter-spacing: 0; text-transform: none; }
+.conversation-request-title { margin: 0; color: var(--foreground); font-size: 13px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+.conversation-request-description { margin: 0; color: color-mix(in srgb, var(--foreground) 82%, var(--muted-foreground)); font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
+.conversation-request-tool { min-width: 0; border: 1px solid color-mix(in srgb, var(--border) 80%, transparent); border-radius: 8px; background: color-mix(in srgb, var(--background) 70%, transparent); font-size: 11px; }
+.conversation-request-tool > summary { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 6px 9px; cursor: pointer; user-select: none; color: var(--muted-foreground); }
+.conversation-request-tool > summary code { flex: 0 0 auto; color: var(--foreground); font: 600 11px/1.4 var(--font-mono, monospace); }
+.conversation-request-tool-summary { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 10px/1.4 var(--font-mono, monospace); }
+.conversation-request-tool > pre { max-height: 200px; margin: 0; padding: 0 9px 8px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; color: color-mix(in srgb, var(--foreground) 88%, var(--muted-foreground)); font: 10px/1.5 var(--font-mono, monospace); }
+.conversation-request-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.conversation-request-option[data-slot="button"] { gap: 6px; }
+.conversation-request-option.is-deny[data-slot="button"] { color: var(--destructive); border-color: color-mix(in srgb, var(--destructive) 40%, var(--border)); }
+.conversation-request-option.is-deny[data-slot="button"]:hover { background: color-mix(in srgb, var(--destructive) 8%, transparent); }
+.conversation-request-error { margin: 0; color: var(--destructive); font-size: 11px; }
+.conversation-request-tool summary:focus-visible { outline: 2px solid var(--oa-focus-ring); outline-offset: -2px; }
+
 .conversation-error { display: grid; gap: 7px; margin: 20px 0; padding: 13px; border: 1px solid color-mix(in srgb, var(--destructive) 50%, var(--border)); border-radius: 10px; color: var(--destructive); font-size: 12px; }
 .conversation-error button { width: fit-content; color: var(--foreground); text-decoration: underline; }
 .conversation-jump-latest { position: absolute; right: max(18px, calc((100% - 736px) / 2)); bottom: 82px; z-index: 2; padding: 6px 10px; border: 1px solid color-mix(in srgb, var(--primary) 42%, var(--border)); border-radius: 999px; color: var(--foreground); background: color-mix(in srgb, var(--secondary) 92%, transparent); box-shadow: 0 5px 18px color-mix(in srgb, var(--shadow-color) 16%, transparent); font-size: 10px; font-weight: 650; }
@@ -176,7 +202,8 @@
 @media (prefers-reduced-motion: reduce) {
   .conversation-message-actions, .conversation-disclosure { transition: none; }
   .conversation-activity[open] > .conversation-activity-body,
-  .conversation-tool-step[open] > .conversation-step-detail { animation: none; }
+  .conversation-tool-step[open] > .conversation-step-detail,
+  .conversation-request { animation: none; }
 }
 
 /* Conversation shares the viewport with the global rail and Workspace sidebar. Its
