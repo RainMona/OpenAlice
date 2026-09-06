@@ -15,6 +15,7 @@ vi.mock('./ChatLandingPage', () => {
   </div>
   return { ChatLandingPage: page('Chat'), AutoQuantLandingPage: page('Auto Quant'), AutoPredictionLandingPage: page('Auto Prediction') }
 })
+vi.mock('../components/ProjectWorkspaceSetupNotice', () => ({ ProjectWorkspaceSetupNotice: () => null }))
 afterEach(cleanup)
 
 it('defaults to the shared Chat flow and keeps separate drafts when selecting Harnesses', async () => {
