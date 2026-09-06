@@ -106,7 +106,7 @@ export function resetDemoWorkspaceWebState(): void {
     const workspace = demoWorkspaces[index]!
     demoWorkspaces[index] = {
       ...workspace,
-      sessions: workspace.sessions.map((session) => demoResumedSessions.get(webPiKey(workspace.id, session.id)) ?? session).filter((session) =>
+      sessions: workspace.sessions.map((session) => demoResumedSessions.get(webKey(workspace.id, session.id)) ?? session).filter((session) =>
         !session.id.startsWith('demo-quick-chat-')
         && !session.id.startsWith('run-demo-resume-')),
     }
@@ -1392,7 +1392,7 @@ export const workspacesHandlers = [
     if (!workspace || !session) {
       return HttpResponse.json({ error: 'not_found', message: 'This demo Session is unavailable.' }, { status: 404 })
     }
-    const key = webPiKey(workspace.id, session.id)
+    const key = webKey(workspace.id, session.id)
     if (!demoResumedSessions.has(key)) demoResumedSessions.set(key, session)
     // Demo never starts a PTY; pid 0 represents the existing terminal preview.
     const updated: SessionRecord = {
