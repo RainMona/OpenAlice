@@ -141,6 +141,9 @@ export class AcpTransport implements WebSessionTransport {
     if (kind !== 'user_message_chunk') this.flushUser()
     switch (kind) {
       case 'user_message_chunk':
+        // prompt() already appended this turn's user message. ACP runtimes
+        // such as Grok echo it; only history replay should append these chunks.
+        if (this.turnActive) break
         this.pendingUserText = `${this.pendingUserText ?? ''}${contentBlockText(update['content'])}`
         break
       case 'agent_message_chunk':

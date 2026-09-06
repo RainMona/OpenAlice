@@ -65,7 +65,7 @@ describe('Web surface command composition', () => {
 
   it('composes the three native ACP agents', () => {
     expect(cursorAdapter.composeWebCommand!([], ctx({ approveProject: true }))).toEqual(['cursor-agent', '--trust', 'acp'])
-    expect(grokAdapter.composeWebCommand!([], ctx())).toEqual(['grok', '--no-leader', 'agent', 'stdio'])
+    expect(grokAdapter.composeWebCommand!([], ctx())).toEqual(['grok', 'agent', '--no-leader', 'stdio'])
     expect(opencodeAdapter.composeWebCommand!([], ctx())).toEqual(['opencode', 'acp'])
   })
 })

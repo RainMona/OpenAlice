@@ -353,16 +353,16 @@ export const grokAdapter: CliAdapter = {
     return [...cmd, ...grokResumeArgs(ctx.resume)];
   },
 
-  // Web surface: `grok --no-leader [model/effort] [--rules …] agent stdio`.
+  // Web surface: `grok [--rules …] agent --no-leader [model/effort] stdio`.
   // Session identity is negotiated over ACP, so no `--resume`/`--continue`.
   composeWebCommand(_base: readonly string[], ctx: SpawnContext): readonly string[] {
     if (ctx.resume === 'last') throw new Error('the Web surface requires a concrete Grok session id or a fresh Session');
     return [
       'grok',
-      '--no-leader',
-      ...(ctx.sessionRuntime?.webArgs ?? ctx.sessionRuntime?.interactiveArgs ?? []),
       ...grokRulesArgs(ctx),
       'agent',
+      '--no-leader',
+      ...(ctx.sessionRuntime?.webArgs ?? ctx.sessionRuntime?.interactiveArgs ?? []),
       'stdio',
     ];
   },
