@@ -29,8 +29,6 @@ the durable truth after it changes. Git history is the archive.
 
 ## Active
 
-- [[plans/project-workspace-setup.md]] — Prepare selected Harness workspaces when creating a new AliceProject.
-
 - [[plans/unified-page-topbar.md]] — Unifies navigator and content toolbars
   across the UI, with fixed page actions and content-owned sidebar restoration.
   Held on `codex/ui-usability-followup` for visual acceptance.
