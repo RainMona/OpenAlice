@@ -1,3 +1,4 @@
+import { prepareProjectWorkspaces } from '../workspaces/project-workspace-setup.js'
 import { Hono, type Context } from 'hono'
 import { cors } from 'hono/cors'
 import { createAdaptorServer, serve } from '@hono/node-server'
@@ -278,6 +279,12 @@ export class WebPlugin implements Plugin {
         : {}),
       inboxStore: ctx.inboxStore,
     })
+    await prepareProjectWorkspaces(this.workspaceService, {
+      onProgress: (workspace, error) => {
+        if (error) console.warn(`[workspace setup] ${workspace}: ${error}. Retry from Quick Start or restart the project.`)
+        else console.log(`[workspace setup] Preparing ${workspace}…`)
+      },
+    }).catch((error: unknown) => console.warn('[workspace setup] Could not read setup request:', error))
     this.workspacesIpc = attachWorkspacesIpc(this.workspaceService)
     if (this.workspaceServiceRef) this.workspaceServiceRef.current = this.workspaceService
     app.route('/api/workspaces', createWorkspaceRoutes(this.workspaceService))

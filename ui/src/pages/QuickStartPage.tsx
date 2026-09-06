@@ -1,3 +1,4 @@
+import { ProjectWorkspaceSetupNotice } from '../components/ProjectWorkspaceSetupNotice'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Binary, ChevronDown, MessageSquare, Microscope } from 'lucide-react'
@@ -16,6 +17,7 @@ type Harness = typeof HARNESS_CHOICES[number]['id']
 /** A launch surface only: workspace readiness and Session creation stay in each Harness. */
 export function QuickStartPage() {
   const { t } = useTranslation()
+  const [prepared, setPrepared] = useState(0)
   const [harness, setHarness] = useState<Harness>('chat')
   const [drafts, setDrafts] = useState<Record<Harness, string>>({ chat: '', 'auto-quant': '', prediction: '' })
   const selected = HARNESS_CHOICES.find(choice => choice.id === harness)!
@@ -43,7 +45,8 @@ export function QuickStartPage() {
           </DropdownMenuContent>
         </DropdownMenu>
       )} />
-      <Page key={harness} spec={{ params: { initialPrompt: drafts[harness] } }} showHeader={false}
+      <ProjectWorkspaceSetupNotice onPrepared={() => setPrepared(value => value + 1)} />
+      <Page key={`${harness}:${prepared}`} spec={{ params: { initialPrompt: drafts[harness] } }} showHeader={false}
         onPromptChange={prompt => setDrafts(previous => ({ ...previous, [harness]: prompt }))} />
     </PageContentLayout>
   )

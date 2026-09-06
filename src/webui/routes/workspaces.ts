@@ -1,3 +1,4 @@
+import { prepareProjectWorkspaces, readProjectWorkspaceSetup } from '../../workspaces/project-workspace-setup.js';
 /**
  * Hono routes for the Workspaces feature, mounted at /api/workspaces.
  *
@@ -1059,6 +1060,12 @@ export function createWorkspaceRoutes(
       launcherLogger.warn('auto_quant.preference_write_failed', { id: workspace.id, err });
       return c.json({ error: 'preferences_write_failed', message: (err as Error).message }, 500);
     }
+  });
+
+  app.get('/project-setup', async (c) => c.json(await readProjectWorkspaceSetup()));
+  app.post('/project-setup/retry', async (c) => {
+    await prepareProjectWorkspaces(svc);
+    return c.json(await readProjectWorkspaceSetup());
   });
 
   app.post('/chat/initialize', async (c) => {

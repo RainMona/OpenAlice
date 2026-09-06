@@ -31,6 +31,7 @@ export const en = {
     noReadme: "There is no README.md in this Workspace yet. You can ask your agent to write an overview of its purpose and contents.",
     noGuide: "No Harness guide is available.",
   },
+  projectSetup: { connectPi: 'Connect a provider for Chat with Pi', title: 'Some workspaces need attention', description: 'Your project is ready. Retry preparing the remaining workspaces, or continue with the ones already available.', pending: 'Waiting for setup', preparing: 'Preparing…' },
   quickStart: { chooseHarness: 'Choose Harness' },
   nav: {
     quickStart: 'Quick Start',
