@@ -137,7 +137,7 @@ describe('Ask Alice sidebar in AutoQuant mode', () => {
   it('keeps the office visible but withholds research and Studio until the default is ready', () => {
     const state = { ...context(), autoQuantDefaultWorkspaceId: null }
     render(<WorkspacesContext.Provider value={state}><ChatWorkspaceSection mode="auto-quant" placement="navigation" /></WorkspacesContext.Provider>)
-    expect(screen.queryByRole('button', { name: 'Open Studio' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Studio' })).toBeNull()
     expect(screen.queryByRole('button', { name: sessionTitle })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Auto Quant Harness' }))
     expect(actions.openOrFocus).toHaveBeenCalledWith({ kind: 'auto-quant-landing', params: {} })
@@ -148,7 +148,7 @@ describe('Ask Alice sidebar in AutoQuant mode', () => {
     render(<WorkspacesContext.Provider value={context()}><ChatWorkspaceSection mode="auto-quant" placement="navigation" /></WorkspacesContext.Provider>)
     fireEvent.click(screen.getByRole('button', { name: sessionTitle }))
     expect(actions.resumeSession).toHaveBeenCalledWith(workspace.id, session.id, 'auto-quant')
-    fireEvent.click(screen.getByRole('button', { name: 'Open Studio' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Studio' }))
     expect(actions.openOrFocus).toHaveBeenCalledWith({ kind: 'harness-surface', params: { wsId: workspace.id, capability: 'studio', source: 'auto-quant' } })
   })
   it('stacks Harness capabilities as full-width rows', () => {
@@ -215,7 +215,7 @@ describe.each(['auto-quant', 'prediction'] as const)('%s navigation readiness', 
     const state = renderNavigation({ workspaces: [], autoQuantDefaultWorkspaceId: null, autoPredictionDefaultWorkspaceId: null })
     expect(screen.queryByText('Set up a workspace to start researching.')).toBeNull()
     expect(screen.queryByRole('button', { name: `Set up ${name}` })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Open Studio' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Studio' })).toBeNull()
     expect(screen.queryByRole('button', { name: /New.*research/i })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: `${name} Harness` }))
     expect(actions.openOrFocus).toHaveBeenCalledWith({ kind: landingKind, params: {} })
@@ -227,7 +227,7 @@ describe.each(['auto-quant', 'prediction'] as const)('%s navigation readiness', 
     const create = screen.getByRole('button', { name: new RegExp(`^${name}: New`) })
     expect(create.parentElement?.lastElementChild).toBe(create)
     expect(screen.queryByRole('button', { name: /^New.*research$/i })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Open Studio' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Studio' })).toBeTruthy()
     fireEvent.click(create)
     expect(actions.openOrFocus).toHaveBeenCalledWith({ kind: landingKind, params: { targetWsId: workspace.id } })
   })
@@ -243,13 +243,13 @@ describe.each(['auto-quant', 'prediction'] as const)('%s navigation readiness', 
   it('does not flash setup while preferences are loading', () => {
     renderNavigation({ autoQuantPreferenceLoaded: false, autoPredictionPreferenceLoaded: false })
     expect(screen.getByLabelText('Loading…')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /Set up|Choose workspace|Open Studio/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Set up|Choose workspace|Studio/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /New.*research/i })).toBeNull()
   })
 
   it('shows preference failure as retryable error, not a missing workspace', () => {
     const state = renderNavigation({ workspaces: [], autoQuantPreferenceError: 'offline', autoPredictionPreferenceError: 'offline' })
-    expect(screen.queryByRole('button', { name: /Set up|Choose workspace|Open Studio/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Set up|Choose workspace|Studio/ })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(mode === 'auto-quant' ? state.refreshAutoQuantPreference : state.refreshAutoPredictionPreference).toHaveBeenCalledOnce()
   })
@@ -263,7 +263,7 @@ describe.each(['auto-quant', 'prediction'] as const)('%s navigation readiness', 
   it('marks only its matching Studio as current', () => {
     focused.spec = { kind: 'harness-surface', params: { wsId: workspace.id, source: mode, capability: 'studio' } }
     renderNavigation()
-    const studio = screen.getByRole('button', { name: 'Open Studio' })
+    const studio = screen.getByRole('button', { name: 'Studio' })
     expect(studio.getAttribute('aria-current')).toBe('page')
     fireEvent.click(studio)
     expect(actions.openOrFocus).toHaveBeenCalledWith(focused.spec)

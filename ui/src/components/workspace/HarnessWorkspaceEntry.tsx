@@ -1,8 +1,9 @@
-import { AppWindow, ArrowRight } from 'lucide-react'
+import { Layers, ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../ui/button'
+import { SidebarChildRow, SidebarChildRowButton } from '../SidebarChildRow'
 
-/** Workspace tools, visually distinct from the recent conversation rows. */
+/** Shared Studio navigation for ready Harness workspaces. */
 export function HarnessWorkspaceEntry({ state, active, onOpen }: {
   state: 'ready' | 'select'
   active: boolean
@@ -24,15 +25,12 @@ export function HarnessWorkspaceEntry({ state, active, onOpen }: {
     )
   }
   return (
-    <div className="px-2 pb-1 pt-1">
-      <Button variant="outline" onClick={onOpen} aria-current={active ? 'page' : undefined}
-        className={`h-auto min-h-10 w-full justify-start gap-2 px-2.5 text-[13px] font-normal whitespace-normal shadow-none md:min-h-8 ${active
-          ? 'border-primary/35 bg-sidebar-accent text-sidebar-accent-foreground dark:border-primary/35 dark:bg-sidebar-accent'
-          : 'border-sidebar-border/70 bg-transparent text-sidebar-foreground/85 dark:border-sidebar-border/70 dark:bg-transparent'}`}>
-        <AppWindow className="size-3.5" aria-hidden />
-        <span className="min-w-0 flex-1 text-left">{t('harnessNavigation.openStudio')}</span>
-        <ArrowRight className="size-3.5 text-muted-foreground" aria-hidden />
-      </Button>
-    </div>
+    <SidebarChildRow active={active} className="oa-harness-studio-entry">
+      <SidebarChildRowButton onClick={onOpen} aria-current={active ? 'page' : undefined}
+        icon={<Layers className="size-3.5 text-muted-foreground" strokeWidth={1.5} />}>
+        <span className="min-w-0 flex-1 truncate">{t('harnessSurface.studio')}</span>
+        <ArrowRight className="oa-studio-arrow size-3.5 text-muted-foreground" aria-hidden />
+      </SidebarChildRowButton>
+    </SidebarChildRow>
   )
 }

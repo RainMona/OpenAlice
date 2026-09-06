@@ -87,7 +87,7 @@ export function ConversationView(props: ConversationViewProps) {
       setFollowing(followingRef.current)
     }}>
       {props.items.length === 0 && !error && <div className="conversation-empty">{props.empty}</div>}
-      {props.items.map((item, index) => <ConversationTranscriptItem key={item.key} item={item} working={props.busy && index === props.items.length - 1} />)}
+      {props.items.map((item, index) => <ConversationTranscriptItem key={item.key} item={item} latest={index === props.items.length - 1} working={props.busy && index === props.items.length - 1} />)}
       {error && <div className="conversation-error" role="alert">
         <strong>Could not continue</strong><span>{error}</span>
         {props.retry && <button type="button" onClick={() => { setActionError(null); props.retry?.() }}>Retry</button>}

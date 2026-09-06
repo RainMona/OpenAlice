@@ -59,6 +59,7 @@ const demoManagerSession = {
 
 let demoManagerMessages: WebConversationMessage[] = []
 let demoQuickChatSequence = 0
+const demoResumedSessions = new Map<string, SessionRecord>()
 let demoWorkspaceCreateSequence = 0
 let demoAutoQuantDefaultWorkspaceId: string | null = DEMO_AUTO_QUANT_WORKSPACE_ID
 let demoAutoPredictionDefaultWorkspaceId: string | null = DEMO_AUTO_PREDICTION_WORKSPACE_ID
@@ -105,11 +106,12 @@ export function resetDemoWorkspaceWebState(): void {
     const workspace = demoWorkspaces[index]!
     demoWorkspaces[index] = {
       ...workspace,
-      sessions: workspace.sessions.filter((session) =>
+      sessions: workspace.sessions.map((session) => demoResumedSessions.get(webKey(workspace.id, session.id)) ?? session).filter((session) =>
         !session.id.startsWith('demo-quick-chat-')
         && !session.id.startsWith('run-demo-resume-')),
     }
   }
+  demoResumedSessions.clear()
 }
 
 function setDemoWebSession(seed: DemoWebSeed): WebSessionSnapshot {
@@ -1384,7 +1386,28 @@ export const workspacesHandlers = [
     }
     return HttpResponse.json({ session: updatedSession })
   }),
-  http.post('/api/workspaces/:id/sessions/:sid/resume', () => HttpResponse.json(null)),
+  http.post('/api/workspaces/:id/sessions/:sid/resume', ({ params }) => {
+    const workspace = demoWorkspaces.find((candidate) => candidate.id === String(params.id))
+    const session = workspace?.sessions.find((candidate) => candidate.id === String(params.sid))
+    if (!workspace || !session) {
+      return HttpResponse.json({ error: 'not_found', message: 'This demo Session is unavailable.' }, { status: 404 })
+    }
+    const key = webKey(workspace.id, session.id)
+    if (!demoResumedSessions.has(key)) demoResumedSessions.set(key, session)
+    // Demo never starts a PTY; pid 0 represents the existing terminal preview.
+    const updated: SessionRecord = {
+      ...session, state: 'running', surface: 'terminal', pid: 0,
+      startedAt: session.state === 'running' ? (session.startedAt ?? Date.now()) : Date.now(),
+      lastActiveAt: new Date().toISOString(),
+    }
+    const index = demoWorkspaces.indexOf(workspace)
+    demoWorkspaces[index] = { ...workspace, sessions: workspace.sessions.map((row) => row.id === session.id ? updated : row) }
+    return HttpResponse.json({
+      sessionId: updated.id, wsId: workspace.id, name: updated.name,
+      pid: updated.pid, startedAt: updated.startedAt, agent: updated.agent,
+      resumeId: updated.resumeId, title: updated.title ?? null, surface: 'terminal',
+    })
+  }),
   http.delete('/api/workspaces/:id/sessions/:sid', ({ params }) => {
     const wsId = String(params.id)
     const sessionId = String(params.sid)

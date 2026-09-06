@@ -8,8 +8,9 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactElement } from '
 import { useTranslation } from 'react-i18next'
 import {
   AppWindow,
-  Binary,
-  Microscope,
+  ChartNoAxesCombined,
+  Radar,
+  Layers,
   ChevronDown,
   ChevronRight,
   Clock3,
@@ -407,7 +408,7 @@ export function ChatWorkspaceSection({
           title={harnessTitle}
           compact={compact}
           compactIcon={mode === 'chat' ? <MessageSquare size={15} strokeWidth={1.75} aria-hidden />
-            : mode === 'auto-quant' ? <Microscope size={15} strokeWidth={1.75} aria-hidden /> : <Binary size={15} strokeWidth={1.75} aria-hidden />}
+            : mode === 'auto-quant' ? <ChartNoAxesCombined size={17} strokeWidth={1.75} aria-hidden /> : <Radar size={17} strokeWidth={1.75} aria-hidden />}
           active={(isWsFocus && (compact || !selection?.sessionId)) || landingOwnsStatus || studioActive || (focused?.kind === 'workspace-details' && focused.params.source === source)}
           showNewAction={mode === 'chat' || Boolean(navigationLoaded && !navigationError && currentWorkspace)}
           newLabel={newLabel} onOpen={openLanding} menu={contextMenu}
@@ -467,7 +468,7 @@ export function ChatWorkspaceSection({
             size="lg"
             className="w-full justify-start px-2.5 text-muted-foreground"
           >
-            <AppWindow size={15} strokeWidth={2.05} className="shrink-0 text-primary" />
+            <Layers size={14} strokeWidth={1.5} className="shrink-0 text-muted-foreground" aria-hidden />
             <span className="text-body">{t('harnessSurface.studio')}</span>
           </Button>
         )}

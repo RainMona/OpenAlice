@@ -98,8 +98,14 @@ retryable errors. Without a Workspace, only the Harness header remains: clicking
 it opens the existing setup landing flow, without creating or selecting a
 Workspace. Do not repeat setup copy or a second setup button below it. Before
 readiness, the new-research shortcut is hidden.
-Studio is a compact outlined tool button with route-owned selection, separate
-from conversation rows; Quant and Prediction share its presentation.
+Studio is a quiet, borderless child navigation row aligned with Sessions, with
+route-owned selection. Its arrow appears on hover or keyboard focus and remains
+visible on touch devices; Quant and Prediction share its presentation.
+`SidebarChildRow` and `SidebarChildRowButton` own Harness child geometry for
+both Studio and Sessions: a 16px icon slot, 8px label gap, shared selection and
+keyboard focus, and sibling action controls. Expanded fine-pointer desktop rows
+are 30px tall with no additional per-destination vertical padding; other surfaces
+retain the existing Session row density. Keep runtime behavior in the caller.
 Harness working views use one content top bar, not a second conversation sidebar.
 TerminalView has no card/canvas mode: its header always uses PageTopBar and its
 single grid row fills the remaining height. Do not reserve a local header row
@@ -172,6 +178,14 @@ the Harness launch page; its context, controls and details are caller-owned
 slots, not embedded Pi selectors. Existing `oa-harness-composer-*` styling seams
 remain the shared visual material. Messages and composer use a 46rem reading
 measure, with local scrolling for wide output and wrapping toolbar controls.
+User messages use a quiet, borderless bubble; assistant prose sits directly on
+the canvas. Execution summaries are lightweight disclosure rows, with an inset
+rail for individual actions rather than nested activity cards. Preserve the
+shared Markdown table scroll wrapper instead of overriding table display.
+Completed text has a copy action that copies only the displayed message, not
+reasoning or tool payloads. Older actions reveal on hover or keyboard focus;
+the latest message and touch surfaces keep them visible. Clipboard failures
+are actionable, and interrupted tools must say incomplete rather than completed.
 
 The normalized types in this folder are ephemeral presentation data, not a new
 persisted transcript or execution protocol. An adapter converts wire messages
