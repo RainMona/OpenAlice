@@ -98,8 +98,14 @@ retryable errors. Without a Workspace, only the Harness header remains: clicking
 it opens the existing setup landing flow, without creating or selecting a
 Workspace. Do not repeat setup copy or a second setup button below it. Before
 readiness, the new-research shortcut is hidden.
-Studio is a compact outlined tool button with route-owned selection, separate
-from conversation rows; Quant and Prediction share its presentation.
+Studio is a quiet, borderless child navigation row aligned with Sessions, with
+route-owned selection. Its arrow appears on hover or keyboard focus and remains
+visible on touch devices; Quant and Prediction share its presentation.
+`SidebarChildRow` and `SidebarChildRowButton` own Harness child geometry for
+both Studio and Sessions: a 16px icon slot, 8px label gap, shared selection and
+keyboard focus, and sibling action controls. Expanded fine-pointer desktop rows
+are 30px tall with no additional per-destination vertical padding; other surfaces
+retain the existing Session row density. Keep runtime behavior in the caller.
 Harness working views use one content top bar, not a second conversation sidebar.
 TerminalView has no card/canvas mode: its header always uses PageTopBar and its
 single grid row fills the remaining height. Do not reserve a local header row

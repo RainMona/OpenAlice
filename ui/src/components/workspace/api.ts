@@ -1255,7 +1255,13 @@ export async function resumeSession(
     const body = (await res.json().catch(() => null)) as { error?: string; message?: string } | null;
     throw new Error(body?.message ?? body?.error ?? `resume session failed: ${res.status}`);
   }
-  return (await res.json()) as SpawnedSession;
+  const body = await res.json().catch(() => null) as SpawnedSession | null;
+  if (!body || body.sessionId !== sessionId || body.wsId !== wsId
+    || typeof body.pid !== 'number' || !Number.isFinite(body.pid)
+    || typeof body.startedAt !== 'number' || !Number.isFinite(body.startedAt)) {
+    throw new Error('Unable to resume this Session: the server returned an invalid response. Please try again.');
+  }
+  return body;
 }
 
 export interface PausedSessionRuntimeUpdate {

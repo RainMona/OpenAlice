@@ -44,7 +44,7 @@ export function HarnessNavigationGroup({ title, compact, compactIcon, active, ne
           </button>}
         </div>
       </div>
-      <div className="ml-3 min-w-0 pb-2">{children}</div>
+      <div className="oa-harness-nav-children ml-3 min-w-0 pb-2">{children}</div>
     </section>
   )
 }

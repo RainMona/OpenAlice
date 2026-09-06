@@ -197,7 +197,7 @@ export function ActivityBar({
                         badge = {
                           count: unreadInbox,
                           label: t('nav.unread', { count: unreadInbox }),
-                          tone: 'bg-sidebar-foreground text-sidebar',
+                          tone: 'oa-inbox-unread-count',
                         }
                       } else if (item.page === 'portfolio' && pendingPush > 0) {
                         badge = {

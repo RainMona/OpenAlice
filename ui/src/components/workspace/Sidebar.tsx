@@ -23,6 +23,7 @@ import { SelectionIndicator } from '../SelectionIndicator';
 import { projectHeadlessTaskPresentation } from './headless-task-presentation';
 import { Button } from '../ui/button';
 import { SidebarRow } from '../SidebarRow';
+import { SidebarChildRow, SidebarChildRowButton } from '../SidebarChildRow';
 
 /**
  * Workspace launcher sidebar.
@@ -730,18 +731,15 @@ export function SessionRow(props: SessionRowProps): ReactElement {
   if (props.failed) labelTone = 'text-muted-foreground/70';
   else if (isPaused && !headlessOccupying) labelTone = 'text-muted-foreground';
   return (
-    <div
+    <SidebarChildRow
       data-reorder-id={props.reorderId}
-      data-active={props.isActive}
+      active={props.isActive}
       aria-busy={headlessOccupying || opening || undefined}
-      className={`oa-session-row text-body group relative mx-1.5 flex min-h-9 items-center gap-1 rounded-md px-2 py-1.5 transition-colors ${
-        props.isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'hover:bg-sidebar-accent/65'
-      }`}
+      className="oa-session-row"
     >
-      {props.isActive && <SelectionIndicator />}
-      <button
-        type="button"
-        className="oa-session-row-main flex-1 min-w-0 flex items-center gap-2 text-left outline-none disabled:cursor-default"
+      <SidebarChildRowButton
+        className="oa-session-row-main"
+        icon={opening ? <LoaderCircle size={14} className="animate-spin motion-reduce:animate-none" aria-hidden /> : <AgentBadgeGlyph agentId={s.agent} />}
         onClick={() => void enter()}
         disabled={opening}
         aria-label={selectLabel}
@@ -749,9 +747,6 @@ export function SessionRow(props: SessionRowProps): ReactElement {
       >
         {/* Runtime identity stays stable across Session state. The action at the
             right and the row treatment carry paused/running/selected state. */}
-        <span className="flex h-4 w-4 shrink-0 items-center justify-center text-foreground/80">
-          {opening ? <LoaderCircle size={14} className="animate-spin motion-reduce:animate-none" aria-hidden /> : <AgentBadgeGlyph agentId={s.agent} />}
-        </span>
         <span className="min-w-0 flex-1">
           <span
             title={display}
@@ -766,7 +761,7 @@ export function SessionRow(props: SessionRowProps): ReactElement {
           )}
           {openError && <span role="alert" className="block text-caption text-destructive break-words">{openError}</span>}
         </span>
-      </button>
+      </SidebarChildRowButton>
       {/* Right-aligned, always-visible state-as-action: an interactive running
           Session shows STOP, a paused one shows PLAY, and headless occupancy
           shows live activity that opens the single-writer explanation. */}
@@ -824,6 +819,6 @@ export function SessionRow(props: SessionRowProps): ReactElement {
           />
         </span>
       )}
-    </div>
+    </SidebarChildRow>
   );
 }
