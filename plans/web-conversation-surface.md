@@ -2,7 +2,7 @@
 
 **Status:** active  
 **Owner guides:** [[docs/web-conversation-surface.md]], [[docs/ui-interaction-and-motion.md]], [[docs/workspace-manager.md]]  
-**Delivery:** serial PR to `dev` (`area:workspace`, `area:ui`).
+**Delivery:** PR `cursor/web-conversation-transports-1c9d` → `dev` (`area:workspace`, `area:ui`).
 
 ## Goal
 
@@ -59,8 +59,11 @@ permission-request model.
   `resumeId` the same way PTY discovery does.
 - agy stays TUI-only: its new `--input-format stream-json` has no permission
   round-trip and no native ACP; revisit when either lands.
-- Workspace Manager keeps its Pi-only WebPi quick start; other runtimes still
-  need a manager-contract injection path before they can join it.
+- Workspace Manager Quick Start keeps opening Pi in Web and other runtimes in
+  their TUI. A paused Manager Session of any web-capable runtime may be
+  reopened in Web from its resume choice; the manager options travel with it
+  and each adapter projects what its structured mode supports
+  (`--append-system-prompt` for claude/omp/pi, `--rules` for grok).
 
 ## UI design decision
 
@@ -74,16 +77,16 @@ inherited from the shared primitives.
 
 ## Work
 
-- [ ] Neutral message/request/snapshot model and transport contract
-- [ ] `WebSessionHost` with process supervision shared by all transports
-- [ ] `pi-rpc` transport (pi, omp) extracted from `WebPiSessionHost`
-- [ ] `acp` transport (cursor, grok, opencode) with permission requests
-- [ ] `claude-stream-json` transport with `can_use_tool` and interrupt
-- [ ] `codex-app-server` transport with approvals and `turn/interrupt`
-- [ ] Adapter capability declarations and `composeWebCommand` per runtime
-- [ ] Service/routes: `/web/*`, `respond`, native-id binding, capability checks
-- [ ] UI: generic hook/presenter/view, permission cards, capability gating, demo
-- [ ] Owner guide + doc updates
+- [x] Neutral message/request/snapshot model and transport contract
+- [x] `WebSessionHost` with process supervision shared by all transports
+- [x] `pi-rpc` transport (pi, omp) extracted from `WebPiSessionHost`
+- [x] `acp` transport (cursor, grok, opencode) with permission requests
+- [x] `claude-stream-json` transport with `can_use_tool` and interrupt
+- [x] `codex-app-server` transport with approvals and `turn/interrupt`
+- [x] Adapter capability declarations and `composeWebCommand` per runtime
+- [x] Service/routes: `/web/*`, `respond`, native-id binding, capability checks
+- [x] UI: generic hook/presenter/view, permission cards, capability gating, demo
+- [x] Owner guide ([[docs/web-conversation-surface.md]]) + doc updates
 - [ ] Live acceptance against each installed runtime (see verification)
 
 ## Verification

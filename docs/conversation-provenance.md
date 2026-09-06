@@ -75,7 +75,7 @@ Ask Alice and AutoQuant list those colleagues from persistent
 Directory (`GET /api/workspaces/:id/resumes`) decorates those rows with
 identity, presence, birth, and latest-execution facts; it never invents roster
 membership. Settings → Harness controls whether a headless-born Session that
-has never opened a TUI or WebPi appears on that shared roster (default off);
+has never opened a TUI or Web conversation appears on that shared roster (default off);
 the Issue page still owns those rows. The roster shows only
 `presence=active` coworkers; Archive files them without destroying either
 their `resumeId` or Session record. Soft-delete (`presence=deleted`) is still
