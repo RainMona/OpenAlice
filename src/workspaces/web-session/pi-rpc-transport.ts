@@ -82,6 +82,10 @@ export class PiRpcTransport implements WebSessionTransport {
     const data = messageResponse['data']
     if (isJsonObject(data) && Array.isArray(data['messages'])) {
       this.ctx.state.replaceMessages(data['messages'].map(convertPiMessage))
+      const last = data['messages'].at(-1)
+      if (isJsonObject(last) && last['role'] === 'assistant' && last['stopReason'] === 'error') {
+        this.ctx.state.error = stringOrNull(last['errorMessage']) ?? 'The model request failed'
+      }
     }
     this.ctx.state.bump()
     return nextState
@@ -135,10 +139,26 @@ export class PiRpcTransport implements WebSessionTransport {
       case 'message_update':
         state.streamingMessage = isJsonObject(event['message']) ? convertPiMessage(event['message']) : null
         break
-      case 'message_end':
+      case 'message_end': {
+        const message = isJsonObject(event['message']) ? event['message'] : null
+        if (message?.['role'] === 'assistant') {
+          state.streamingMessage = null
+          state.error = message['stopReason'] === 'error'
+            ? stringOrNull(message['errorMessage']) ?? 'The model request failed'
+            : null
+        }
+        this.scheduleRefresh(30)
+        break
+      }
       case 'tool_execution_end':
       case 'queue_update':
         this.scheduleRefresh(30)
+        break
+      case 'agent_end':
+        // OMP ends here; Pi may follow with agent_settled or retry events.
+        state.phase = event['willRetry'] === true ? 'retrying' : 'idle'
+        state.streamingMessage = null
+        this.scheduleRefresh(0)
         break
       case 'agent_settled':
         state.phase = 'idle'

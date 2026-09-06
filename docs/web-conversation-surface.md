@@ -130,3 +130,25 @@ than replacing it with transport-disposal errors. Failed opens are rolled back
 by their route, so exit callbacks must not race that registry write. During a
 live ACP turn, user-message echoes are ignored because prompt() already
 appended the message; history replay still consumes user-message chunks.
+
+### Native protocol differences
+
+- OMP emits `agent_end` without Pi's later `agent_settled`; both must settle the
+  turn and clear the streaming copy. A retrying agent_end must remain busy.
+- Pi/OMP can accept a prompt and later emit an assistant with `stopReason:
+  error` and `errorMessage`. Surface that error, including on history load;
+  an empty assistant body is not a successful reply.
+- Claude stream-json does not replay old messages on --resume. The transport
+  loads the exact native session file under CLAUDE_CONFIG_DIR (or the native
+  home default), follows the latest main parent chain, and excludes abandoned
+  branches and sidechains. It does not create another transcript store.
+- OpenCode ACP does not accept --model. Session projection sets its model in
+  process-local OPENCODE_CONFIG_CONTENT and leaves Web argv free of that flag.
+  Native-session config selectors can confirm the effective model. ACP also
+  exposes [session configuration options](https://agentclientprotocol.com/announcements/session-config-options-stabilized).
+
+A default handshake is insufficient acceptance for an adapter: also exercise
+an explicit model, a completed turn, errors, and exact-session restoration with
+the installed CLI. Keep login/provider/version failures distinct from parser
+or lifecycle defects, and never claim every runtime passed from one shared
+wire's fake-process fixture.

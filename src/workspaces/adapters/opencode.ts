@@ -342,7 +342,17 @@ export const opencodeAdapter: CliAdapter = {
           ...(selectedModel ? { model: selectedModel } : {}),
         });
       }
-      return { env, interactiveArgs, headlessArgs, webArgs: interactiveArgs };
+      // ACP has no --model flag. Its native config selects the default model
+      // for session/new; keep this process-local and preserve other settings.
+      if (selectedModel && !env['OPENCODE_CONFIG_CONTENT']) {
+        const raw = _ctx.env['OPENCODE_CONFIG_CONTENT'];
+        const inherited: unknown = raw ? JSON.parse(raw) : {};
+        if (!inherited || typeof inherited !== 'object' || Array.isArray(inherited)) {
+          throw new Error('OPENCODE_CONFIG_CONTENT must contain a JSON object');
+        }
+        env['OPENCODE_CONFIG_CONTENT'] = JSON.stringify({ ...inherited, model: selectedModel });
+      }
+      return { env, interactiveArgs, headlessArgs, webArgs: [] };
     },
   },
 
@@ -369,8 +379,8 @@ export const opencodeAdapter: CliAdapter = {
     return [...head, '--session', ctx.resume.sessionId];
   },
 
-  // Web surface: `opencode [--model …] acp`. Model selection stays on the
-  // top-level flag/env projection; session identity is negotiated over ACP.
+  // Web surface: `opencode acp`. ACP rejects --model; sessionRuntime
+  // projects model selection into OPENCODE_CONFIG_CONTENT instead.
   composeWebCommand(_base: readonly string[], ctx: SpawnContext): readonly string[] {
     if (ctx.resume === 'last') throw new Error('the Web surface requires a concrete opencode session id or a fresh Session');
     return [

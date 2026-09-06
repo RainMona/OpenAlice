@@ -122,3 +122,28 @@ inherited from the shared primitives.
 
 Delete this file and its [[PLANS.md]] bullet when the live acceptance is
 recorded and the PR is accepted.
+
+## Maintainer runtime audit (2026-09-06)
+
+After #1392, exercised all seven installed Web-capable runtimes using their actual Adapter argv
+in disposable working directories. Text probes explicitly prohibited tools and
+file changes; native credentials remained owned by each CLI.
+
+| Runtime | Installed version | Evidence |
+|---|---|---|
+| Claude | 2.1.229 | Native startup and login error; real CLI + isolated local Anthropic stub completed a turn and replayed the same native history after the fix. No credentialed Claude claim. |
+| Codex | 0.147.0 | Handshake, actual text turn and exact-thread history replay with `gpt-5.6-sol` from its model/list. Global `gpt-6-astra` selection is too new for this installed CLI; global settings were not changed. |
+| Cursor | 2026.09.02-c22c1a3 | Actual text turn and same-session history replay. |
+| Grok | 1.0.13 | Actual text turn and same-session history replay (also verified in UI Setup in #1392). |
+| OpenCode | 1.17.13 | Actual text turn and same-session replay. ACP rejected argv containing --model; process-local model config was verified through returned configOptions.currentValue. |
+| OMP | 17.3.4 | Actual text turn and replay; fixed agent_end settlement and stale streaming copy. UI Setup also restored a TUI-created Session in Web and completed a second turn with no duplicate or stuck spinner. |
+| Pi | 0.80.6 | Handshake and recorded session reopening; selected provider returned authentication failure. Fixed the swallowed asynchronous error. No successful credentialed Pi turn claimed. |
+
+Corrections in this increment: native OpenCode model configuration for ACP,
+OMP agent_end handling, Pi/OMP asynchronous model-error projection, and Claude
+native-history replay through its active parent chain. Unit fixtures cover
+these observed runtime shapes. Full tool-approval, cancellation and Web/TUI
+acceptance remains open as listed above; these narrower probes do not close it.
+
+Verification: full hermetic suite passed (739 files, 6657 tests, 3 skipped),
+root typecheck passed, and the final targeted regression run passed (30 tests).
