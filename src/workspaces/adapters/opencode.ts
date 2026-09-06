@@ -296,6 +296,9 @@ export const opencodeAdapter: CliAdapter = {
     // `opencode --session <id>` (composeCommand) resumes by id.
     transcriptDiscovery: 'subprocess',
     headless: true,
+    // `opencode acp` serves the Agent Client Protocol from the same SQLite
+    // session store the TUI uses, so `session/load` reopens `ses_…` ids.
+    web: { wire: 'acp', permissionPrompts: true, freshSession: true },
     aiProvider: {
       credentialSource: 'runtime-or-workspace',
       wirePreference: ['google-generative-ai', 'openai-chat', 'anthropic', 'openai-responses'],
@@ -364,6 +367,17 @@ export const opencodeAdapter: CliAdapter = {
     }
     if (ctx.resume === 'last') return [...head, '--continue'];
     return [...head, '--session', ctx.resume.sessionId];
+  },
+
+  // Web surface: `opencode [--model …] acp`. Model selection stays on the
+  // top-level flag/env projection; session identity is negotiated over ACP.
+  composeWebCommand(_base: readonly string[], ctx: SpawnContext): readonly string[] {
+    if (ctx.resume === 'last') throw new Error('the Web surface requires a concrete opencode session id or a fresh Session');
+    return [
+      'opencode',
+      ...(ctx.sessionRuntime?.webArgs ?? ctx.sessionRuntime?.interactiveArgs ?? []),
+      'acp',
+    ];
   },
 
   // Headless: `opencode run <prompt>` is non-interactive and exits at the turn
