@@ -33,7 +33,7 @@ approval or cannot reopen an exact recorded conversation.
 | Wire | Runtimes | Process | Permission prompts | Fresh session |
 |---|---|---|---|---|
 | `pi-rpc` | `pi`, `omp` | `--mode rpc` JSONL; Pi additionally `--approve`, omp `--auto-approve` | none in RPC mode; launch-time approval | yes (RPC allocates the id) |
-| `acp` | `cursor`, `grok`, `opencode` | Agent Client Protocol JSON-RPC over stdio (`cursor-agent acp`, `grok agent stdio`, `opencode acp`) | `session/request_permission` with the agent's own options | `session/new`; resume via `session/load` when advertised |
+| `acp` | `cursor`, `grok`, `opencode` | Agent Client Protocol JSON-RPC over stdio (`cursor-agent acp`, `grok agent --no-leader stdio`, `opencode acp`) | `session/request_permission` with the agent's own options | `session/new`; resume via `session/load` when advertised |
 | `claude-stream-json` | `claude` | `-p --input-format stream-json --output-format stream-json --include-partial-messages --permission-prompt-tool stdio` | `control_request` `can_use_tool`; answered with allow/deny | `--session-id <uuid>` chosen by the adapter |
 | `codex-app-server` | `codex` | `codex app-server --listen stdio://` with MCP registration, `approvalPolicy: on-request`, `sandbox: workspace-write` | `item/commandExecution/requestApproval`, `item/fileChange/requestApproval` (answered with a `decision` enum), `item/permissions/requestApproval` (answered with the granted `permissions` profile + `scope`), `item/tool/requestUserInput` | `thread/start`; resume via `thread/resume` |
 
@@ -122,3 +122,11 @@ change.
   each runtime, open one Session in Web, send a prompt that needs a tool,
   answer the card, stop mid-turn, then reopen the same Session in the TUI and
   confirm the native transcript is shared. State the gap when this was not run.
+
+Grok agent flags belong after the `agent` subcommand; the pager TUI rejects
+top-level `--no-leader` when launching ACP. Verify argv with the installed CLI,
+not just a fake process. Startup errors retain the child exit diagnostic rather
+than replacing it with transport-disposal errors. Failed opens are rolled back
+by their route, so exit callbacks must not race that registry write. During a
+live ACP turn, user-message echoes are ignored because prompt() already
+appended the message; history replay still consumes user-message chunks.

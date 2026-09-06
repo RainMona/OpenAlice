@@ -2859,7 +2859,9 @@ export async function createWorkspaceService(opts: CreateWorkspaceServiceOptions
         // Intentional handoffs are followed by an explicit caller-owned state
         // update (paused, terminal-running, or deleted). Letting this async
         // callback also write `paused` would race a Web -> TUI switch.
-        if (reason.intentional) return;
+        // The opening route also owns rollback when the handshake fails.
+        // A second registry write here races its atomic-file replacement.
+        if (reason.intentional || reason.startupFailed) return;
         const record = sessionRegistry.findById(recordId);
         if (!record) return;
         void sessionRegistry.update(record.wsId, record.id, {

@@ -52,6 +52,7 @@ export interface WebSessionExitReason {
   readonly code: number | null
   readonly signal: NodeJS.Signals | null
   readonly intentional: boolean
+  readonly startupFailed?: boolean
 }
 
 interface HostCallbacks {
@@ -162,6 +163,7 @@ class LiveWebSession {
   private stderrTail = ''
   private intentionalStop = false
   private exited = false
+  private startupComplete = false
   private readonly startedAt = Date.now()
 
   constructor(
@@ -196,9 +198,17 @@ class LiveWebSession {
       this.child.once('error', reject)
     })
     this.logger.info('web_session.started', { pid: this.child.pid ?? null, command: this.input.command })
-    await this.transport.start()
+    try {
+      await this.transport.start()
+    } catch (error) {
+      // Transport disposal rejects its handshake waiters with a generic
+      // "session stopped" error. Preserve the child process diagnostic.
+      if (this.exited) throw new Error(this.state.error ?? 'Web session process exited during startup')
+      throw error
+    }
     if (this.exited) throw new Error(this.state.error ?? 'Web session process exited during startup')
     if (this.state.phase === 'starting') this.state.setPhase('idle')
+    this.startupComplete = true
   }
 
   snapshot(): WebSessionSnapshot {
@@ -276,6 +286,10 @@ class LiveWebSession {
     if (this.exited) return
     this.exited = true
     this.channel.close()
+    if (!this.intentionalStop && !this.state.error) {
+      const detail = this.stderrTail.trim().slice(-2000)
+      this.state.error = `${this.input.agent} exited (code=${String(code)}, signal=${String(signal)})${detail ? `: ${detail}` : ''}`
+    }
     try {
       this.transport.dispose?.()
     } catch {
@@ -288,7 +302,7 @@ class LiveWebSession {
     this.state.clearRequests()
     this.state.bump()
     this.logger.info('web_session.exited', { code, signal, intentional: this.intentionalStop })
-    this.callbacks.onExit({ code, signal, intentional: this.intentionalStop })
+    this.callbacks.onExit({ code, signal, intentional: this.intentionalStop, startupFailed: !this.startupComplete })
   }
 }
 

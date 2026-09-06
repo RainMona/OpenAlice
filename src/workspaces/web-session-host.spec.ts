@@ -217,6 +217,7 @@ function acpProcess(options: { loadSession?: boolean; failAuth?: boolean } = {})
     }
     if (method === 'session/prompt') {
       const sessionId = params['sessionId']
+      self.line({ jsonrpc: '2.0', method: 'session/update', params: { sessionId, update: { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'summarize the readme' } } } })
       self.line({ jsonrpc: '2.0', method: 'session/update', params: { sessionId, update: { sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: 'let me look' } } } })
       self.line({ jsonrpc: '2.0', method: 'session/update', params: { sessionId, update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Reading ' } } } })
       self.line({ jsonrpc: '2.0', method: 'session/update', params: { sessionId, update: { sessionUpdate: 'tool_call', toolCallId: 'call_1', title: 'Read README.md', kind: 'read', status: 'pending', rawInput: { path: 'README.md' } } } })
@@ -622,4 +623,18 @@ describe('Codex question answers', () => {
     expect(host.get('record-1')!.requests).toHaveLength(1)
     await host.stopAll()
   })
+})
+
+
+it('preserves the child diagnostic when ACP exits during its handshake', async () => {
+  const exit = vi.fn()
+  const process = new FakeProcess((_command, self) => {
+    self.stderr.write('Error: --no-leader belongs after agent\n')
+    self.emit('exit', 1, null)
+  })
+  const host = new WebSessionHost(logger, { onExit: exit }, () => process as never)
+  await expect(host.start(input({ agent: 'grok', wire: 'acp', command: ['grok', 'agent', 'stdio'] })))
+    .rejects.toThrow('--no-leader belongs after agent')
+  expect(exit).toHaveBeenCalledWith('record-1', { code: 1, signal: null, intentional: false, startupFailed: true })
+  expect(host.has('record-1')).toBe(false)
 })
