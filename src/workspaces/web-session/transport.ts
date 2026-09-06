@@ -143,7 +143,7 @@ export interface WebSessionTransport {
   prompt(message: string): Promise<void>
   abort(): Promise<void>
   /** Answer one outstanding request with the chosen option id. */
-  respond(requestId: string, optionId: string): Promise<void>
+  respond(requestId: string, optionId: string, text?: string): Promise<void>
   /** Polite shutdown before the host closes stdin and signals the process. */
   dispose?(): void
 }

@@ -46,11 +46,13 @@ export interface WebRequestOption {
 /**
  * A question the runtime cannot answer on its own: a tool permission, a file
  * change approval, or a free-form user question. The browser presents the
- * options verbatim and answers with one `optionId`.
+ * options verbatim and answers with one `optionId`, or text when allowed.
  */
 export interface WebPermissionRequest {
   readonly id: string
   readonly kind: 'permission' | 'question'
+  readonly allowText?: boolean
+  readonly secret?: boolean
   readonly title: string
   readonly description?: string
   readonly tool?: { readonly name: string; readonly input: unknown }

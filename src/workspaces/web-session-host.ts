@@ -128,9 +128,9 @@ export class WebSessionHost {
     return session.snapshot()
   }
 
-  async respond(recordId: string, requestId: string, optionId: string): Promise<WebSessionSnapshot> {
+  async respond(recordId: string, requestId: string, optionId: string, text?: string): Promise<WebSessionSnapshot> {
     const session = this.require(recordId)
-    await session.respond(requestId, optionId)
+    await session.respond(requestId, optionId, text)
     return session.snapshot()
   }
 
@@ -231,9 +231,13 @@ class LiveWebSession {
     return this.transport.abort()
   }
 
-  respond(requestId: string, optionId: string): Promise<void> {
+  respond(requestId: string, optionId: string, text?: string): Promise<void> {
     this.assertLive()
-    return this.transport.respond(requestId, optionId)
+    const request = this.state.requests.find((entry) => entry.id === requestId)
+    if (text !== undefined && (request?.kind !== 'question' || !request.allowText || optionId !== '' || !text.trim())) {
+      return Promise.reject(new Error('This request does not accept this text answer'))
+    }
+    return this.transport.respond(requestId, optionId, text)
   }
 
   async stop(reason: string): Promise<void> {

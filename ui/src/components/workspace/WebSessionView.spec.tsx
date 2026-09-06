@@ -271,7 +271,7 @@ describe('WebSessionView permission requests', () => {
     render(<WebSessionView wsId="ws-1" sessionId="c1" agents={agents} onSessionLost={vi.fn()} />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'Deny' }))
-    await waitFor(() => expect(mocks.respondWebSession).toHaveBeenCalledWith('ws-1', 'c1', 'req-1', 'deny'))
+    await waitFor(() => expect(mocks.respondWebSession).toHaveBeenCalledWith('ws-1', 'c1', 'req-1', 'deny', undefined))
     await waitFor(() => expect(screen.queryByRole('group', { name: 'Allow Read?' })).toBeNull())
   })
 
@@ -298,4 +298,17 @@ describe('WebSessionView permission requests', () => {
     expect(card.textContent).toContain('+1 more')
     expect(screen.queryByRole('group', { name: 'Allow Bash?' })).toBeNull()
   })
+})
+
+
+it('submits a free-text question answer through the conversation hook', async () => {
+  mocks.getWebSession.mockResolvedValue(snapshot('awaiting-input', {
+    agent: 'codex', wire: 'codex-app-server',
+    requests: [{ id: 'q1', kind: 'question', title: 'Project name', options: [], allowText: true, createdAt: 1 }],
+  }))
+  render(<WebSessionView wsId="workspace-manager" sessionId="p1" onSessionLost={() => {}} />)
+  const field = await screen.findByLabelText('Your answer')
+  fireEvent.change(field, { target: { value: 'Alice research' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Send answer' }))
+  await waitFor(() => expect(mocks.respondWebSession).toHaveBeenCalledWith('workspace-manager', 'p1', 'q1', '', 'Alice research'))
 })

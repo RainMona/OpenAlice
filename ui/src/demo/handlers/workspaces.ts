@@ -217,6 +217,14 @@ function startDemoWebTurn(wsId: string, sessionId: string, message: string): Web
     return appendDemoWebMessages(wsId, sessionId, demoWebFollowUp(current.agent, message))
   }
   const requestId = `demo-web-request-${++demoWebRequestSequence}`
+  if (current.agent === 'codex' && /ask me/i.test(message)) {
+    return updateDemoWebSession(wsId, sessionId, () => ({
+      phase: 'awaiting-input',
+      messages: [...current.messages, { role: 'user', content: message }],
+      streamingMessage: null,
+      requests: [{ id: requestId, kind: 'question', title: 'Project name', description: 'What should we call this project?', options: [], allowText: true, createdAt: Date.now() }],
+    }))
+  }
   return updateDemoWebSession(wsId, sessionId, () => ({
     phase: 'awaiting-input',
     messages: [...current.messages, { role: 'user', content: message }],
@@ -230,11 +238,16 @@ function answerDemoWebRequest(
   sessionId: string,
   requestId: string,
   optionId: string,
+  text?: string,
 ): WebSessionSnapshot | null | 'unknown_request' | 'unknown_option' {
   const current = findDemoWebSession(wsId, sessionId)
   if (!current) return null
   const request = current.requests.find((entry) => entry.id === requestId)
   if (!request) return 'unknown_request'
+  if (text !== undefined) {
+    if (request.kind !== 'question' || !request.allowText || optionId !== '' || !text.trim()) return 'unknown_option'
+    return appendDemoWebMessages(wsId, sessionId, [{ role: 'assistant', content: [{ type: 'text', text: `Project name: ${text}` }] }])
+  }
   const option = request.options.find((entry) => entry.id === optionId)
   if (!option) return 'unknown_option'
   return appendDemoWebMessages(
@@ -1467,13 +1480,13 @@ export const workspacesHandlers = [
       : HttpResponse.json({ error: 'web_not_running' }, { status: 409 })
   }),
   http.post('/api/workspaces/:id/sessions/:sid/web/respond', async ({ params, request }) => {
-    const body = await request.json().catch(() => ({})) as { requestId?: unknown; optionId?: unknown }
+    const body = await request.json().catch(() => ({})) as { requestId?: unknown; optionId?: unknown; text?: unknown }
     const wsId = String(params.id)
     const sessionId = String(params.sid)
-    if (typeof body.requestId !== 'string' || typeof body.optionId !== 'string') {
+    if (typeof body.requestId !== 'string' || typeof body.optionId !== 'string' || (body.text !== undefined && typeof body.text !== 'string')) {
       return HttpResponse.json({ error: 'bad_request', message: 'requestId and optionId are required' }, { status: 400 })
     }
-    const result = answerDemoWebRequest(wsId, sessionId, body.requestId, body.optionId)
+    const result = answerDemoWebRequest(wsId, sessionId, body.requestId, body.optionId, body.text as string | undefined)
     if (result === null) return HttpResponse.json({ error: 'web_not_running' }, { status: 409 })
     if (result === 'unknown_request') {
       return HttpResponse.json({ error: 'web_respond_failed', message: `no pending request ${body.requestId}` }, { status: 409 })

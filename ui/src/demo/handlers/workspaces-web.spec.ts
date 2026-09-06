@@ -184,3 +184,16 @@ describe('demo Web Session handlers', () => {
     expect(aborted.body.snapshot.messages.at(-1)).toEqual({ role: 'notice', text: 'Turn stopped by the user.' })
   })
 })
+
+
+it('round-trips a Codex free-text question in demo mode', async () => {
+  const body = await quickChat('codex', 'Ask me for a project name')
+  const url = webUrl(DEMO_CHAT_WORKSPACE_ID, body.session.sessionId)
+  const current = await fetch(url).then((response) => response.json())
+  const request = current.snapshot.requests[0]
+  expect(request).toMatchObject({ kind: 'question', options: [], allowText: true })
+  const result = await postJson(`${url}/respond`, { requestId: request.id, optionId: '', text: 'Alice research' })
+  expect(result.status).toBe(200)
+  expect(result.body.snapshot.requests).toEqual([])
+  expect(JSON.stringify(result.body.snapshot.messages)).toContain('Project name: Alice research')
+})

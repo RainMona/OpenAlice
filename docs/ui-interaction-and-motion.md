@@ -501,3 +501,12 @@ For motion changes:
 
 Motion should be judged in the running UI. A class name or screenshot alone
 cannot prove timing, continuity, or pointer feedback.
+
+Web question cards keep the existing composer status placement. Text-capable
+questions show a labeled shared Textarea and an explicit Send answer button;
+offered options stay available above it. Secret questions use a masked field.
+The layout stacks vertically at narrow widths and does not steal focus.
+Permission cards remain option-only. A failed submission retains the draft,
+while a new request ID mounts a fresh card so answers do not leak between
+questions. This is owned by the shared ConversationRequestCard, not a
+runtime-specific presenter.
