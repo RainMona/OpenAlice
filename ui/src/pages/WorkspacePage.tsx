@@ -24,6 +24,7 @@ import '@xterm/xterm/css/xterm.css'
 import { useWorkspaces } from '../contexts/workspaces-context'
 import { useWorkspaceSessionData } from '../hooks/useWorkspaceData'
 import { useWorkspace } from '../tabs/store'
+import { agentSupportsWeb } from '../components/workspace/api'
 import { workspaceDisplayName, workspaceDisplayTitle } from '../components/workspace/display'
 import { WorkspaceView } from '../components/workspace/WorkspaceView'
 import { PageTopBar } from '../components/PageTopBar'
@@ -105,29 +106,36 @@ export function WorkspacePage({ spec, visible }: Props) {
     activeRecord?.state === 'running' &&
     (activeRecord.surface ?? 'terminal') === 'terminal'
   const pausedCanvas = activeRecord?.state === 'paused'
-  const webPiCanvas = activeRecord?.state === 'running' && activeRecord.surface === 'webpi' && activeRecord.agent === 'pi'
+  const webCanvas = activeRecord?.state === 'running' && activeRecord.surface === 'webpi'
   const workspaceCanvas = terminalCanvas || pausedCanvas
+  // The surface toggle is offered only for runtimes that expose a structured
+  // protocol; a TUI-only runtime keeps its terminal without a dead button.
+  const canSwitchSurface = activeRecord?.state === 'running'
+    && (webCanvas || agentSupportsWeb(ctx.agents, activeRecord.agent))
+  const runtimeLabel = activeRecord
+    ? ctx.agents.find((agent) => agent.id === activeRecord.agent)?.displayName ?? activeRecord.agent
+    : ''
   const workspaceActions = (
     <>
-      {activeRecord?.agent === 'pi' && activeRecord.state === 'running' && (
+      {activeRecord && canSwitchSurface && (
         <Button
           type="button"
           onClick={() => {
-            if ((activeRecord.surface ?? 'terminal') === 'webpi') {
+            if (webCanvas) {
               void ctx.resumeSession(wsId, activeRecord.id, source)
             } else {
-              void ctx.openWebPiSession(wsId, activeRecord.id, source)
+              void ctx.openWebSession(wsId, activeRecord.id, source)
             }
           }}
           variant="ghost"
           size="sm"
           className="text-[11px]"
-          title={(activeRecord.surface ?? 'terminal') === 'webpi' ? 'Open this Pi Session in the terminal' : 'Open this Pi Session in WebPi'}
+          title={webCanvas ? `Open this ${runtimeLabel} Session in the terminal` : `Open this ${runtimeLabel} Session in Web`}
         >
-          {(activeRecord.surface ?? 'terminal') === 'webpi'
+          {webCanvas
             ? <Monitor size={13} strokeWidth={2.25} aria-hidden="true" />
-            : <AgentRuntimeIcon agentId="pi" className="h-[13px] w-[13px]" />}
-          {(activeRecord.surface ?? 'terminal') === 'webpi' ? 'Open TUI' : 'WebPi Beta'}
+            : <AgentRuntimeIcon agentId={activeRecord.agent} className="h-[13px] w-[13px]" />}
+          {webCanvas ? 'Open TUI' : 'Web Beta'}
         </Button>
       )}
       <WorkspaceFilesToggle />
@@ -154,7 +162,7 @@ export function WorkspacePage({ spec, visible }: Props) {
     <div className={`workspaces-root workspace-page-shell flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden${terminalCanvas ? ' is-terminal-canvas' : ''}${pausedCanvas ? ' is-paused-canvas' : ''}`}>
       {/* Running renderers fill the shared header slot with session identity
        * and these actions. Libraries and paused sessions own their header here. */}
-      {!terminalCanvas && !webPiCanvas && (
+      {!terminalCanvas && !webCanvas && (
         <PageTopBar title={workspaceName} titleHint={workspaceDisplayTitle(workspace)} actions={workspaceActions}>
             {hasCustomName && (
               <span className="hidden shrink-0 font-mono text-[10px] text-muted-foreground/70 sm:inline">
@@ -173,14 +181,14 @@ export function WorkspacePage({ spec, visible }: Props) {
           sessions={sessions}
           agents={ctx.agents}
           label={workspaceName}
-          terminalHeaderActions={terminalCanvas || webPiCanvas ? workspaceActions : undefined}
+          terminalHeaderActions={terminalCanvas || webCanvas ? workspaceActions : undefined}
           onSpawnFresh={spawnDefault}
           onResume={(id) => ctx.resumeSession(wsId, id, source)}
           onUpdateSessionRuntime={(_id, update) => updateRuntime(update).then(() => undefined)}
           onSaveSessionDisplayName={(resumeId, displayName) => (
             ctx.setSessionDisplayName(wsId, resumeId, displayName)
           )}
-          onOpenWebPi={(id) => ctx.openWebPiSession(wsId, id, source)}
+          onOpenWeb={(id) => ctx.openWebSession(wsId, id, source)}
           onSelectSession={(id) => {
             // Running session — already alive on the server, just
             // navigate. Mirrors the sidebar's onSelectSession path.

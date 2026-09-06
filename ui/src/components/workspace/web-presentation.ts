@@ -1,8 +1,12 @@
 import type { ConversationContent, ConversationItem } from '../conversation/types'
-import { contentText, groupWebPiTranscript, summarizeToolInput } from './webpi-transcript'
+import { contentText, groupWebTranscript, summarizeToolInput } from './web-transcript'
 
-/** Pi's wire content is interpreted here, never by the shared renderer. */
-export function piContent(value: unknown): ConversationContent {
+/**
+ * Neutral Web content parts are interpreted here, never by the shared
+ * renderer. The shape is Pi's minimal message model, which every transport
+ * (Pi RPC, ACP, Claude stream-json, Codex app-server) projects onto.
+ */
+export function webContent(value: unknown): ConversationContent {
   if (typeof value === 'string') return [{ kind: 'markdown', text: value }]
   if (!Array.isArray(value)) {
     const item = record(value)
@@ -15,13 +19,15 @@ export function piContent(value: unknown): ConversationContent {
     if (item?.type === 'text' && typeof item.text === 'string') return [{ kind: 'markdown', text: item.text }]
     if (item?.type === 'thinking') return [{ kind: 'disclosure', label: 'Thinking', content: [{ kind: 'markdown', text: String(item.thinking ?? item.text ?? '') }] }]
     if (item?.type === 'toolCall') return [{ kind: 'disclosure', label: `Used ${String(item.name ?? 'tool')}`, content: [{ kind: 'data', text: json(item.arguments ?? {}) }] }]
+    if (item?.type === 'data') return [{ kind: 'data', text: json(item.value) }]
     return [{ kind: 'data', text: json(part) }]
   })
 }
 
-export function presentPiTranscript(messages: readonly unknown[]): ConversationItem[] {
-  return groupWebPiTranscript(messages).map((item): ConversationItem => {
-    if (item.kind === 'user') return { ...item, content: piContent(item.content) }
+export function presentWebTranscript(messages: readonly unknown[]): ConversationItem[] {
+  return groupWebTranscript(messages).map((item): ConversationItem => {
+    if (item.kind === 'user') return { ...item, content: webContent(item.content) }
+    if (item.kind === 'notice') return item
     if (item.kind === 'unknown') return { kind: 'unknown', key: item.key, content: [{ kind: 'data', text: json(item.value) }] }
     return {
       ...item,
@@ -32,7 +38,7 @@ export function presentPiTranscript(messages: readonly unknown[]): ConversationI
           ...step,
           summary: summarizeToolInput(step.name, step.input),
           input: json(step.input),
-          result: step.result === undefined ? undefined : piContent(step.result),
+          result: step.result === undefined ? undefined : webContent(step.result),
           resultChars: step.result === undefined ? undefined : contentText(step.result).length,
         })),
       },

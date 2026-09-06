@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   activityToolLabel,
-  groupWebPiTranscript,
+  groupWebTranscript,
   summarizeToolInput,
-} from './webpi-transcript'
+} from './web-transcript'
 
-describe('groupWebPiTranscript', () => {
+describe('groupWebTranscript', () => {
   it('turns Pi assistant/tool hops into one auditable activity group', () => {
-    const transcript = groupWebPiTranscript([
+    const transcript = groupWebTranscript([
       { role: 'user', content: [{ type: 'text', text: 'Send the report.' }] },
       {
         role: 'assistant',
@@ -46,7 +46,7 @@ describe('groupWebPiTranscript', () => {
   })
 
   it('keeps failures openable and preserves unmatched native tool results', () => {
-    const transcript = groupWebPiTranscript([
+    const transcript = groupWebTranscript([
       { role: 'assistant', content: [{ type: 'toolCall', id: 'pending', name: 'bash', arguments: {} }] },
       { role: 'toolResult', toolCallId: 'orphan', toolName: 'read', isError: true, content: [{ type: 'text', text: 'missing' }] },
     ])
@@ -62,7 +62,7 @@ describe('groupWebPiTranscript', () => {
   })
 })
 
-describe('WebPi activity summaries', () => {
+describe('Web activity summaries', () => {
   it('summarizes safe, useful arguments without exposing write contents', () => {
     expect(summarizeToolInput('write', { path: 'research/report.md', content: 'secret body' }))
       .toBe('research/report.md')

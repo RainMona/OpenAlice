@@ -29,6 +29,11 @@ the durable truth after it changes. Git history is the archive.
 
 ## Active
 
+- [[plans/web-conversation-surface.md]] — Generalizes WebPi into one Web
+  conversation surface: a neutral `WebSessionHost` with `pi-rpc`, `acp`,
+  `claude-stream-json`, and `codex-app-server` transports, first-class
+  permission requests, and capability-gated UI. Live per-runtime acceptance
+  remains open.
 - [[plans/unified-page-topbar.md]] — Unifies navigator and content toolbars
   across the UI, with fixed page actions and content-owned sidebar restoration.
   Held on `codex/ui-usability-followup` for visual acceptance.

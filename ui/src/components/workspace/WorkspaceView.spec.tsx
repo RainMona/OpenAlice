@@ -28,7 +28,7 @@ vi.mock('./Terminal', () => ({
     return <div data-testid="terminal-view" />
   },
 }))
-vi.mock('./WebPiView', () => ({ WebPiView: () => null }))
+vi.mock('./WebSessionView', () => ({ WebSessionView: () => null }))
 
 function session(index: number, state: SessionRecord['state']): SessionRecord {
   return {
@@ -75,7 +75,7 @@ describe('WorkspaceView Session library', () => {
         sessions={sessions}
         onSpawnFresh={onSpawnFresh}
         onResume={onResume}
-        onOpenWebPi={vi.fn()}
+        onOpenWeb={vi.fn()}
         onSelectSession={onSelectSession}
         onSessionLost={vi.fn()}
       />,
@@ -122,7 +122,7 @@ describe('WorkspaceView Files panel', () => {
       sessions={[]}
       onSpawnFresh={vi.fn()}
       onResume={vi.fn()}
-      onOpenWebPi={vi.fn()}
+      onOpenWeb={vi.fn()}
       onSelectSession={vi.fn()}
       onSessionLost={vi.fn()}
     />,
@@ -146,7 +146,7 @@ describe('WorkspaceView Files panel', () => {
         sessions={[]}
         onSpawnFresh={vi.fn()}
         onResume={vi.fn()}
-        onOpenWebPi={vi.fn()}
+        onOpenWeb={vi.fn()}
         onSelectSession={vi.fn()}
         onSessionLost={vi.fn()}
       />,
@@ -187,7 +187,7 @@ describe('WorkspaceView paused Session recovery', () => {
         sessions={[paused]}
         onSpawnFresh={vi.fn()}
         onResume={onResume}
-        onOpenWebPi={vi.fn(async () => undefined)}
+        onOpenWeb={vi.fn(async () => undefined)}
         onSelectSession={vi.fn()}
         onSessionLost={vi.fn()}
       />,
@@ -228,7 +228,7 @@ describe('WorkspaceView terminal canvas', () => {
         terminalHeaderActions={headerActions}
         onSpawnFresh={vi.fn()}
         onResume={vi.fn()}
-        onOpenWebPi={vi.fn()}
+        onOpenWeb={vi.fn()}
         onSelectSession={vi.fn()}
         onSessionLost={vi.fn()}
       />,

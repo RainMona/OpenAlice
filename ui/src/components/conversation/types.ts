@@ -26,4 +26,6 @@ export interface ConversationActivity {
 export type ConversationItem =
   | { readonly kind: 'user'; readonly key: string; readonly content: ConversationContent }
   | { readonly kind: 'assistant-turn'; readonly key: string; readonly progress: readonly string[]; readonly final: string | null; readonly activity: ConversationActivity | null }
+  /** A runtime/system remark that is neither party speaking: mode changes, restarts, aborted turns. */
+  | { readonly kind: 'notice'; readonly key: string; readonly text: string }
   | { readonly kind: 'unknown'; readonly key: string; readonly content: ConversationContent }

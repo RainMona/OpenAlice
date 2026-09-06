@@ -1,4 +1,4 @@
-export interface WebPiToolStep {
+export interface WebToolStep {
   readonly id: string
   readonly name: string
   readonly input: unknown
@@ -7,13 +7,13 @@ export interface WebPiToolStep {
   readonly status: 'running' | 'succeeded' | 'failed'
 }
 
-export interface WebPiActivity {
-  readonly steps: readonly WebPiToolStep[]
+export interface WebActivity {
+  readonly steps: readonly WebToolStep[]
   readonly thinking: readonly string[]
   readonly unknownParts: readonly unknown[]
 }
 
-export type WebPiTranscriptItem =
+export type WebTranscriptItem =
   | {
       readonly kind: 'user'
       readonly key: string
@@ -24,7 +24,12 @@ export type WebPiTranscriptItem =
       readonly key: string
       readonly progress: readonly string[]
       readonly final: string | null
-      readonly activity: WebPiActivity | null
+      readonly activity: WebActivity | null
+    }
+  | {
+      readonly kind: 'notice'
+      readonly key: string
+      readonly text: string
     }
   | {
       readonly kind: 'unknown'
@@ -42,12 +47,13 @@ interface ToolResultRecord {
 }
 
 /**
- * Pi persists each assistant/tool-result hop as a native message. The browser
- * should present those records as one conversational turn without replacing
- * Pi's schema or losing the raw audit trail.
+ * Every Web transport projects its runtime into the neutral message list:
+ * one record per assistant hop and tool result. The browser presents those
+ * records as one conversational turn without replacing the runtime's own
+ * schema or losing the raw audit trail.
  */
-export function groupWebPiTranscript(messages: readonly unknown[]): WebPiTranscriptItem[] {
-  const items: WebPiTranscriptItem[] = []
+export function groupWebTranscript(messages: readonly unknown[]): WebTranscriptItem[] {
+  const items: WebTranscriptItem[] = []
   let turn: MutableTurn | null = null
 
   const flushTurn = (): void => {
@@ -74,7 +80,15 @@ export function groupWebPiTranscript(messages: readonly unknown[]): WebPiTranscr
       return
     }
     flushTurn()
-    items.push({ kind: 'unknown', key: messageKey(value, index), value })
+    if (role === 'notice' && typeof record?.['text'] === 'string') {
+      items.push({ kind: 'notice', key: messageKey(value, index), text: record['text'] })
+      return
+    }
+    items.push({
+      kind: 'unknown',
+      key: messageKey(value, index),
+      value: role === 'unknown' && record && 'value' in record ? record['value'] : value,
+    })
   })
   flushTurn()
   return items
@@ -83,7 +97,7 @@ export function groupWebPiTranscript(messages: readonly unknown[]): WebPiTranscr
 export function summarizeToolInput(_name: string, input: unknown): string | null {
   const record = asRecord(input)
   if (!record) return primitiveSummary(input)
-  const path = firstString(record, ['path', 'file', 'filePath', 'target'])
+  const path = firstString(record, ['path', 'file', 'filePath', 'file_path', 'target'])
   if (path) return truncateLine(path, 84)
   const command = firstString(record, ['command', 'cmd'])
   if (command) return truncateLine(command, 84)
@@ -95,7 +109,7 @@ export function summarizeToolInput(_name: string, input: unknown): string | null
   return fallback ? truncateLine(String(fallback[1]), 84) : null
 }
 
-export function activityToolLabel(steps: readonly WebPiToolStep[]): string {
+export function activityToolLabel(steps: readonly WebToolStep[]): string {
   const counts = new Map<string, number>()
   for (const step of steps) counts.set(step.name, (counts.get(step.name) ?? 0) + 1)
   return [...counts].map(([name, count]) => count > 1 ? `${name} ×${count}` : name).join(' · ')
@@ -113,7 +127,7 @@ export function contentText(value: unknown): string {
   }).join('\n')
 }
 
-function buildAssistantTurn(turn: MutableTurn): WebPiTranscriptItem {
+function buildAssistantTurn(turn: MutableTurn): WebTranscriptItem {
   const results = new Map<string, ToolResultRecord>()
   for (const message of turn.messages) {
     const record = asRecord(message.value)
@@ -126,7 +140,7 @@ function buildAssistantTurn(turn: MutableTurn): WebPiTranscriptItem {
 
   const usedResults = new Set<string>()
   const texts: string[] = []
-  const steps: WebPiToolStep[] = []
+  const steps: WebToolStep[] = []
   const detachedThinking: string[] = []
   const unknownParts: unknown[] = []
 
@@ -172,6 +186,10 @@ function buildAssistantTurn(turn: MutableTurn): WebPiTranscriptItem {
         pendingThinking = []
         continue
       }
+      if (type === 'data') {
+        unknownParts.push(item?.['value'] ?? part)
+        continue
+      }
       unknownParts.push(part)
     }
     detachedThinking.push(...pendingThinking)
@@ -195,8 +213,9 @@ function buildAssistantTurn(turn: MutableTurn): WebPiTranscriptItem {
     : null
   return {
     kind: 'assistant-turn',
-    // Keep the key stable while Pi appends tool calls/results during polling.
-    // Otherwise every newly-arrived step remounts the disclosure and closes it.
+    // Keep the key stable while the runtime appends tool calls/results during
+    // polling. Otherwise every newly-arrived step remounts the disclosure and
+    // closes it.
     key: `assistant-${turn.startIndex}`,
     progress: texts.slice(0, -1),
     final,

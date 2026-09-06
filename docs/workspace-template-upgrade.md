@@ -84,7 +84,7 @@ Apply takes the shared checkout-operation lease and is serialized per Workspace.
 Offboarding uses the same lease; a future Merge/Absorb operation must do so as
 well, so directory reconciliation and directory moves cannot race. Apply also
 refuses to start while an interactive
-Session, WebPi Session, or headless run is active. It also refuses an already
+Session, Web Session, or headless run is active. It also refuses an already
 staged Git index so the template change cannot absorb an unrelated staged
 change.
 

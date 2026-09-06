@@ -17,6 +17,13 @@ export function ConversationTranscriptItem({
       </article>
     )
   }
+  if (item.kind === 'notice') {
+    return (
+      <aside className="conversation-message is-notice" role="note">
+        <div className="conversation-notice-body">{item.text}</div>
+      </aside>
+    )
+  }
   if (item.kind === 'unknown') {
     return (
       <article className="conversation-message is-assistant">
