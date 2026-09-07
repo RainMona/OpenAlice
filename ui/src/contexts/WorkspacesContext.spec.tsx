@@ -312,7 +312,7 @@ describe('WorkspacesProvider conversation routing', () => {
     ))
   })
 
-  it('lands a deleted focused Session on its Workspace Session library', async () => {
+  it('lands a deleted focused Session on its Workspace new-conversation composer', async () => {
     const focusedSession = persistentSession()
     mocks.listWorkspaces.mockResolvedValue([{ ...workspace(), sessions: [focusedSession] }])
     mocks.getWorkspaceState.mockReturnValue({

@@ -196,7 +196,7 @@ describe.each(['auto-quant', 'prediction'] as const)('%s navigation readiness', 
   const name = mode === 'auto-quant' ? 'Auto Quant' : 'Auto Prediction'
   const templateName = mode === 'auto-quant' ? 'auto-quant-v2' : 'auto-prediction'
   const landingKind = mode === 'auto-quant' ? 'auto-quant-landing' : 'auto-prediction-landing'
-  function renderNavigation(overrides: Partial<WorkspacesContextValue> = {}) {
+  function renderNavigation(overrides: Partial<WorkspacesContextValue> = {}, compact = false) {
     const state = {
       ...context(),
       workspaces: [{ ...workspace, template: templateName }],
@@ -207,7 +207,7 @@ describe.each(['auto-quant', 'prediction'] as const)('%s navigation readiness', 
       refreshAutoPredictionPreference: vi.fn(async () => undefined),
       ...overrides,
     }
-    render(<WorkspacesContext.Provider value={state}><ChatWorkspaceSection mode={mode} placement="navigation" /></WorkspacesContext.Provider>)
+    render(<WorkspacesContext.Provider value={state}><ChatWorkspaceSection mode={mode} placement="navigation" compact={compact} /></WorkspacesContext.Provider>)
     return state
   }
 
@@ -265,8 +265,17 @@ describe.each(['auto-quant', 'prediction'] as const)('%s navigation readiness', 
     renderNavigation()
     const studio = screen.getByRole('button', { name: 'Studio' })
     expect(studio.getAttribute('aria-current')).toBe('page')
+    expect(screen.getByRole('button', { name: `${name} Harness` }).getAttribute('aria-current')).toBeNull()
     fireEvent.click(studio)
     expect(actions.openOrFocus).toHaveBeenCalledWith(focused.spec)
     expect(actions.resumeSession).not.toHaveBeenCalled()
   })
+
+  it('keeps the Harness current in the compact rail when Studio is hidden', () => {
+    focused.spec = { kind: 'harness-surface', params: { wsId: workspace.id, source: mode, capability: 'studio' } }
+    renderNavigation({}, true)
+    expect(screen.queryByRole('button', { name: 'Studio' })).toBeNull()
+    expect(screen.getByRole('button', { name: `${name} Harness` }).getAttribute('aria-current')).toBe('page')
+  })
+
 })

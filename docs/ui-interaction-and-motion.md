@@ -88,8 +88,8 @@ restore shows a spinner and rejects repeated clicks; failures stay on the row
 and allow retry. Headless occupancy still opens the single-writer explanation.
 The primary row has no separate play/stop target; settings, stop and archive live
 in its options menu. Direct links and history browsers retain view-only opening.
-In expanded navigation, a selected Session does not also select its Harness
-header. The compact rail retains the Harness selection because Session rows
+In expanded navigation, a selected Session or Studio does not also select its
+Harness header. The compact rail retains the Harness selection because Session rows
 are hidden there; returning to the Harness landing selects its header.
 Quant/Prediction retain their explicit default
 Workspace readiness gates before exposing sessions and Studio. The navigation
@@ -524,3 +524,37 @@ Permission cards remain option-only. A failed submission retains the draft,
 while a new request ID mounts a fresh card so answers do not leak between
 questions. This is owned by the shared ConversationRequestCard, not a
 runtime-specific presenter.
+
+## Harness work panel
+
+The application remains primary navigation plus content. `ChatPageShell` owns
+an internal `HarnessWorkbench` split for Chat, AutoQuant and Auto Prediction;
+it is not an application-level third rail. The conversation is one pane and a
+resizable tabbed work panel is the other. File browsing opens read-only file
+tabs in this panel. Existing Studio routes open managed Studio beside the last
+visited Session in that Workspace, or the new-conversation composer when none was visited.
+The split spans one continuous top bar: conversation title on the left and
+individually closable tabs on the right. There is no enclosing panel title bar.
+The plus button follows the last tab until the tab strip fills the available
+width; overflow scrolls inside the strip while add and collapse stay reachable.
+The plus menu opens Files, Browser or Studio. Studio supplies its managed URL
+and readiness state to the same BrowserPane used by ordinary browser tabs.
+The address bar contains reload and separate-open controls; Studio restart and
+logs live in its overflow menu. Web frames respect host embedding restrictions;
+address history tracks submitted URLs, not cross-origin in-page navigation.
+
+Workspace-keyed runtime view state retains open tabs, selected tab, width and
+last Session. Mounted file/Studio tabs survive disclosure and Session changes;
+closing a tab releases its view without stopping the managed Studio process.
+Reload resets this transient view state. At content widths below 720px the
+panel replaces the conversation region while the shared header and explicit
+collapse/return action remain available. Base UI Tabs and the shared resizable
+primitive own keyboard selection and splitter behavior.
+
+Harness headers expose a single icon-only work-panel disclosure with a tooltip
+and accessible expanded state. Workspace configuration stays in the existing
+sidebar menu. Web/TUI switching is available from the panel menu. Disclosure
+uses the shared 250ms ease-out curve for the resizable outer panels, with a
+subtle content fade/translation. Pointer and keyboard resizing remain immediate;
+reduced-motion mode disables the transitions. Content width is held during the
+short disclosure to avoid repeatedly wrapping file and Studio content.

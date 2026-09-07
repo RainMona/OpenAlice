@@ -264,7 +264,7 @@ function HarnessWorkspacePicker({
   )
 }
 
-function HarnessLandingPage({
+export function HarnessLandingPage({
   spec,
   mode,
   showHeader = true,
