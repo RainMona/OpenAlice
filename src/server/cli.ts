@@ -22,6 +22,7 @@
  */
 
 import type { Hono } from 'hono'
+import { readAliceHarnessConfig, cliGroupEnabled, DEFAULT_ALICE_HARNESS_CONFIG } from '../workspaces/alice-harness-policy.js'
 import { z } from 'zod'
 import type { Tool } from 'ai'
 import type { ToolCenter } from '../core/tool-center.js'
@@ -58,7 +59,7 @@ export interface CliGatewayDeps {
   getWorkspaceService: () => WorkspaceService | null
 }
 
-type WsMeta = { id: string; tag: string }
+type WsMeta = { id: string; tag: string; dir?: string }
 
 /** Mount /cli/:wsId/:export/* onto an existing Hono app (the MCP server's app). */
 export function registerCliRoutes(app: Hono, deps: CliGatewayDeps, manifestOnly = false): void {
@@ -73,7 +74,7 @@ export function registerCliRoutes(app: Hono, deps: CliGatewayDeps, manifestOnly 
     // identity can share the CLI without entering the business registry.
     const meta = svc.resolveRuntimeWorkspace?.(wsId) ?? svc.registry.get(wsId)
     if (!meta) return { error: 'unknown' }
-    return { meta: { id: meta.id, tag: meta.tag } }
+    return { meta: { id: meta.id, tag: meta.tag, dir: meta.dir } }
   }
 
   /**
@@ -105,7 +106,7 @@ export function registerCliRoutes(app: Hono, deps: CliGatewayDeps, manifestOnly 
         entityStore,
         ...(svc ? { provenanceStore: svc.provenanceStore } : {}),
         ...(svc ? { conversation: createWorkspaceConversationControl(svc) } : {}),
-        ...(svc ? { templateUpgrades: svc.templateUpgrades } : {}),
+        ...(svc ? { templateUpgrades: svc.templateUpgrades, aliceHarnessUpgrades: svc.aliceHarnessUpgrades } : {}),
         ...(svc ? {
           setSessionDisplayName: async (input) => {
             const identity = await svc.setSessionDisplayName({
@@ -213,9 +214,12 @@ export function registerCliRoutes(app: Hono, deps: CliGatewayDeps, manifestOnly 
     return { ok: true, exp, ws: ws.meta }
   }
 
-  app.get(manifestOnly ? '/api/workspaces/:wsId/cli/:export/manifest' : '/cli/:wsId/:export/manifest', (c) => {
+  app.get(manifestOnly ? '/api/workspaces/:wsId/cli/:export/manifest' : '/cli/:wsId/:export/manifest', async (c) => {
     const r = resolveCtx(c.req.param('wsId'), c.req.param('export'))
     if (!r.ok) return c.json({ error: r.error }, r.status)
+    let policy
+    try { policy = r.ws.dir ? await readAliceHarnessConfig(r.ws.dir) : DEFAULT_ALICE_HARNESS_CONFIG }
+    catch (error) { return c.json({ error: (error as Error).message }, 503) }
     const cat = exportCatalog(r.exp, r.ws)
 
     const groups: Record<
@@ -223,6 +227,7 @@ export function registerCliRoutes(app: Hono, deps: CliGatewayDeps, manifestOnly 
       Record<string, { tool: string; description: string; schema: unknown }>
     > = {}
     for (const [group, verbs] of Object.entries(r.exp.commands)) {
+      if (!cliGroupEnabled(policy, r.exp.binary, group)) continue
       for (const [verb, toolName] of Object.entries(verbs)) {
         const tool = cat.resolve(toolName)
         if (!tool) continue
@@ -273,6 +278,12 @@ export function registerCliRoutes(app: Hono, deps: CliGatewayDeps, manifestOnly 
     if (!mappedToolNames(c.req.param('export')).has(toolName)) {
       return c.json({ error: `Unknown CLI command tool: ${toolName || '(none)'}` }, 404)
     }
+    let policy
+    try { policy = r.ws.dir ? await readAliceHarnessConfig(r.ws.dir) : DEFAULT_ALICE_HARNESS_CONFIG }
+    catch (error) { return c.json({ error: (error as Error).message }, 503) }
+    const enabled = Object.entries(r.exp.commands).some(([group, verbs]) =>
+      cliGroupEnabled(policy, r.exp.binary, group) && Object.values(verbs).includes(toolName))
+    if (!enabled) return c.json({ error: `CLI command disabled by Workspace configuration: ${toolName}` }, 403)
     // Out-of-band identity (agent never sees it): the `alice` shim forwards the
     // spawn-injected AQ_RUN_ID (headless) / AQ_SESSION_ID (interactive) here as
     // mutually-exclusive headers, resolved server-side to an authoritative origin

@@ -2,6 +2,17 @@ import type { Resources } from './en'
 
 /** 简体中文. Typed as `Resources` → must match en's key structure exactly. */
 export const zh: Resources = {
+  aliceHarness: {
+    "unversioned": "尚未记录",
+    "manage": "管理",
+    "description": "CLI 和配套 Skills 由 Alice Project 提供，可独立于 Chat、AutoQuant 和 Auto Prediction 升级。命令由当前 Project 运行时执行，已记录版本不代表锁定旧版可执行程序。",
+    "applied": "已注入版本",
+    "available": "Project 可用版本",
+    "enabled": "启用 CLI",
+    "configHint": "先保存命令开关，再预览技能更新。保存或升级前需暂停活跃会话；本地文件改动会进入比较，不会直接覆盖。",
+    "review": "预览注入升级"
+},
+
   mirrors: {
     "canonical": "主源",
     "mirror-only": "仅有镜像",

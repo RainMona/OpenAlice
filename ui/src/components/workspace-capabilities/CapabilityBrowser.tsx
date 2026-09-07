@@ -26,6 +26,7 @@ import {
   stripFrontmatter,
   type ReadFileResult,
 } from '../workspace/api'
+import { AliceHarnessPanel } from './AliceHarnessPanel'
 import { MirrorDetails } from './MirrorDetails'
 import './capabilities.css'
 
@@ -437,6 +438,7 @@ export function CliBrowser({ wsId }: { wsId: string }) {
   const current = filtered.find((c) => c.name === selected) ?? filtered[0]
   return (
     <>
+      <AliceHarnessPanel wsId={wsId} onChange={() => setAttempt((value) => value + 1)} />
       <div className="cap-section-intro">
         <div>
           <h2>{t('capabilities.cli')}</h2>

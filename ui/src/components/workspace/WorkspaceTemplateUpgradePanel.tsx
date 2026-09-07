@@ -27,6 +27,7 @@ import {
 } from './api'
 
 interface Props {
+  readonly layer?: 'template' | 'alice-harness'
   readonly wsId: string
   readonly onWorkspaceChanged: () => void
   readonly onClose: () => void
@@ -39,6 +40,7 @@ interface Props {
  */
 export function WorkspaceTemplateUpgradePanel({
   wsId,
+  layer = 'template',
   onWorkspaceChanged,
   onClose,
 }: Props): ReactElement {
@@ -56,7 +58,7 @@ export function WorkspaceTemplateUpgradePanel({
     setError(null)
     setUnsupported(false)
     try {
-      const next = await getTemplateUpgradePlan(wsId)
+      const next = await (layer === 'template' ? getTemplateUpgradePlan(wsId) : getTemplateUpgradePlan(wsId, layer))
       setPlan(next)
       setResolutions((current) => Object.fromEntries(
         Object.entries(current).filter(([path]) =>
@@ -70,7 +72,7 @@ export function WorkspaceTemplateUpgradePanel({
     } finally {
       setLoading(false)
     }
-  }, [wsId])
+  }, [wsId, layer])
 
   useEffect(() => { void load() }, [load])
 
@@ -79,7 +81,7 @@ export function WorkspaceTemplateUpgradePanel({
     [plan],
   )
   const unresolved = conflicts.filter((file) => !resolutions[file.path]).length
-  const current = plan?.fromVersion === plan?.toVersion
+  const current = plan?.fromVersion === plan?.toVersion && (layer === 'template' || !plan?.files.some((file) => file.status === 'ready' || file.status === 'conflict'))
   const canApply = !!plan && !current && !plan.blocked && unresolved === 0 && !applying
 
   const apply = async (): Promise<void> => {
@@ -87,7 +89,7 @@ export function WorkspaceTemplateUpgradePanel({
     setApplying(true)
     setError(null)
     try {
-      const next = await applyTemplateUpgrade(wsId, plan.planDigest, resolutions)
+      const next = await (layer === 'template' ? applyTemplateUpgrade(wsId, plan.planDigest, resolutions) : applyTemplateUpgrade(wsId, plan.planDigest, resolutions, layer))
       setResult(next)
       onWorkspaceChanged()
       await load()
@@ -125,12 +127,12 @@ export function WorkspaceTemplateUpgradePanel({
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 text-[12px] font-semibold text-muted-foreground">
                     <FileDiff size={14} />
-                    {t('workspace.upgradeManagedAssets')}
+                    {layer === 'alice-harness' ? 'Alice Harness' : t('workspace.upgradeManagedAssets')}
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-[18px] font-semibold text-foreground">
-                    <span>v{plan.fromVersion}</span>
+                    <span className="break-all">{plan.fromVersion === 'unversioned' ? t('aliceHarness.unversioned') : `v${plan.fromVersion}`}</span>
                     <ArrowRight size={17} className="text-muted-foreground" />
-                    <span className={current ? '' : 'text-primary'}>v{plan.toVersion}</span>
+                    <span className={`break-all ${current ? '' : 'text-primary'}`}>v{plan.toVersion}</span>
                   </div>
                   <p className="mt-1 max-w-xl text-[12px] leading-relaxed text-muted-foreground">
                     {current

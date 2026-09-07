@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { i18n } from '../../i18n'
 import { CapabilityBrowser, CliBrowser } from './CapabilityBrowser'
+vi.mock('./AliceHarnessPanel', () => ({ AliceHarnessPanel: () => null }))
 vi.mock('../../hooks/useWorkspaceCapabilities', async (importOriginal) => ({
   ...(await importOriginal<
     typeof import('../../hooks/useWorkspaceCapabilities')

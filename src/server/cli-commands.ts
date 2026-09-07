@@ -141,6 +141,7 @@ const BASE_EXPORTS: Record<string, CliExport> = {
       signature: 'Show this Session\'s safe product identity',
       session: 'Rename or inspect this Workspace\'s product Sessions',
       track: 'Maintain the shared index of durable assets and topics',
+      harness: 'Manage independently versioned Alice Project CLI and Skills injection',
       template: 'Preview or apply managed Workspace-template updates',
     },
     commands: {
@@ -198,6 +199,7 @@ const BASE_EXPORTS: Record<string, CliExport> = {
       },
       // Current-Workspace managed template reconciliation. Preview is the
       // default; `--apply` explicitly performs the reviewed safe operation.
+      harness: { upgrade: 'alice_harness_upgrade' },
       template: {
         upgrade: 'workspace_template_upgrade',
       },

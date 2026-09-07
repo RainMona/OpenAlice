@@ -13,6 +13,17 @@
  */
 
 export const en = {
+  aliceHarness: {
+    "unversioned": "Not recorded",
+    "manage": "Manage",
+    "description": "Alice Project supplies CLI and companion Skills. Upgrade this layer independently of Chat, AutoQuant or Auto Prediction. Commands run on the current Project runtime; the recorded revision does not pin an older executable.",
+    "applied": "Injected revision",
+    "available": "Available from Project",
+    "enabled": "Enable CLI",
+    "configHint": "Save command switches first, then preview the skill update. Pause active Sessions before saving or upgrading. Local file customizations are reviewed, not overwritten.",
+    "review": "Review injection update"
+},
+
   mirrors: {
     "canonical": "Primary source",
     "mirror-only": "Mirror only",

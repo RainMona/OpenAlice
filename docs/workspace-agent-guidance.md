@@ -138,3 +138,11 @@ outside this browser's scope.
 - Was the template version bumped for a material injected-guidance change?
 - Were context injection, the affected tool, the CLI gateway, and the real shim
   tested together?
+
+
+## Independent injection releases
+
+Project-provided CLI and companion Skills are owned and independently versioned
+by [[docs/alice-harness.md]]. Workspace details → CLI → Alice Harness exposes
+accepted/available revisions, command switches and three-way injection upgrade.
+Changing those Skills no longer requires a Chat/AQ/AP template version bump.

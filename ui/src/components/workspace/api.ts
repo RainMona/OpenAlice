@@ -188,8 +188,8 @@ export class TemplateUpgradeApiError extends Error {
   }
 }
 
-export async function getTemplateUpgradePlan(wsId: string): Promise<TemplateUpgradePlan> {
-  const res = await fetch(`/api/workspaces/${encodeURIComponent(wsId)}/template-upgrade`)
+export async function getTemplateUpgradePlan(wsId: string, layer: 'template' | 'alice-harness' = 'template'): Promise<TemplateUpgradePlan> {
+  const res = await fetch(`/api/workspaces/${encodeURIComponent(wsId)}/${layer}-upgrade`)
   const body = await res.json().catch(() => ({})) as {
     plan?: TemplateUpgradePlan
     error?: string
@@ -210,8 +210,9 @@ export async function applyTemplateUpgrade(
   wsId: string,
   planDigest: string,
   resolutions: Readonly<Record<string, TemplateUpgradeResolution>>,
+  layer: 'template' | 'alice-harness' = 'template',
 ): Promise<TemplateUpgradeResult> {
-  const res = await fetch(`/api/workspaces/${encodeURIComponent(wsId)}/template-upgrade`, {
+  const res = await fetch(`/api/workspaces/${encodeURIComponent(wsId)}/${layer}-upgrade`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ planDigest, resolutions }),

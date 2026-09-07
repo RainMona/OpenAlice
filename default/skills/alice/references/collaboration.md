@@ -210,3 +210,18 @@ alice template upgrade --id <workspaceId>
 Applying to a live current Workspace is blocked. A headless run may preview a
 peer but cannot apply a cross-Workspace upgrade. Conflict resolution, lifecycle
 guards, and managed-file boundaries are reported by the live command.
+
+
+## Alice Harness injection
+
+The Alice Project supplies this CLI and its companion Skills independently of
+Chat, AutoQuant and Auto Prediction source versions. Inspect or update only this
+injection layer with `alice harness upgrade` (preview) and `alice harness upgrade
+--apply` (a paused Workspace is required; a manager may target a peer with `--id`).
+Use `alice template upgrade` only for template-owned instructions and skills.
+
+`.alice/alice-harness-version.json` records the accepted injection revision.
+`.alice/alice-harness-config.json` controls enabled CLIs and command groups;
+disabled commands are unavailable through the gateway, including old aliases.
+The live Project supplies execution, so the recorded revision does not pin an
+old binary. Always discover available commands with `alice --help`.

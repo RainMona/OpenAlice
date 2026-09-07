@@ -10,6 +10,17 @@ import type { Resources } from './en'
  * Content is UI chrome only — no geographic or other non-technical terms.
  */
 export const zhHant: Resources = {
+  aliceHarness: {
+    "unversioned": "尚未記錄",
+    "manage": "管理",
+    "description": "CLI 與配套 Skills 由 Alice Project 提供，可獨立於 Chat、AutoQuant 和 Auto Prediction 升級。命令由目前 Project 執行環境執行，記錄版本不代表鎖定舊版執行檔。",
+    "applied": "已注入版本",
+    "available": "Project 可用版本",
+    "enabled": "啟用 CLI",
+    "configHint": "先儲存命令開關，再預覽技能更新。儲存或升級前需暫停使用中的會話；本機檔案修改會進入比較，不會直接覆寫。",
+    "review": "預覽注入升級"
+},
+
   mirrors: {
     "canonical": "主源",
     "mirror-only": "僅有鏡像",
