@@ -66,7 +66,7 @@ function previewPayload(plan: TemplateUpgradePlan, mode: OutputMode, explicitTar
       ? null
       : conflicts.length > 0
         ? 'Resolve every conflict with repeatable --keep-workspace <path> or --use-template <path>, then add --apply.'
-        : `alice-workspace template upgrade${explicitTarget ? ` --id ${plan.workspaceId}` : ''} --apply`,
+        : `alice template upgrade${explicitTarget ? ` --id ${plan.workspaceId}` : ''} --apply`,
   }
 }
 

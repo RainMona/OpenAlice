@@ -252,7 +252,7 @@ export const codexAdapter: CliAdapter = {
   // Headless codex is CLI-MODE, NOT MCP: `codex exec` cancels EVERY MCP tool
   // call when there's no human to approve — even under approval_policy=never
   // (verified: "user cancelled MCP tool call") — so MCP is dead weight here.
-  // Instead the agent reads data via `alice` and reports via `alice-workspace`
+  // Instead the agent reads data and reports via the unified `alice` CLI
   // (shell commands codex runs autonomously). Three GLOBAL `-c` (before `exec`)
   // make that work:
   //   approval_policy=never                        — don't block on approval

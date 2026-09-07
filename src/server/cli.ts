@@ -10,18 +10,15 @@
  * Mounted on the MCP server's Hono app (open posture, no admin-token gate — the
  * workspace CLI carries no secret). Identity rides the URL path (`:wsId`), like
  * `/mcp/:wsId`. The `:export` segment selects a CliExport (data / workspace /
- * …) — the binary the agent invoked (`alice` vs `alice-workspace`) maps to it.
+ * …) — the binary maps to its public export (`alice` and its legacy alias use `data`).
  *
  *   GET  /cli/:wsId/:export/manifest   grouped command tree + per-verb JSON
  *                                      schema (powers `--help`), plus the
  *                                      registered-but-unmapped tools in scope.
  *   POST /cli/:wsId/:export/invoke     { tool, args } -> validate + execute.
  *
- * Each export resolves tools from ONE scope (global ToolCenter for `data`,
- * the per-workspace WorkspaceToolCenter for `workspace`) and invoke is gated to
- * that export's own map — so `alice` can't reach a collaboration tool and
- * vice-versa. Trading has its own explicit `uta` export; cron remains off the
- * CLI surface and is available only through its owned scheduling paths.
+ * alice combines both registry scopes, selecting the owner per mapped tool.
+ * Legacy workspace requests stay scoped. Trading retains the separate uta map.
  */
 
 import type { Hono } from 'hono'
@@ -42,6 +39,7 @@ import { logger as launcherLogger } from '../workspaces/logger.js'
 import { extractMcpShape, wrapToolExecute } from '../core/mcp-export.js'
 import {
   type CliExport,
+  toolRegistryScope,
   getExport,
   mappedToolNames,
   mappedToolNamesForScope,
@@ -79,18 +77,24 @@ export function registerCliRoutes(app: Hono, deps: CliGatewayDeps, manifestOnly 
   }
 
   /**
-   * A per-request lookup over ONE export's scope: global catalog for `data`,
-   * the (per-workspace) scoped catalog for `workspace`. Never crosses scopes —
-   * an export only sees the tools its category owns.
+   * Per-request dispatch preserves Workspace context when a mixed export
+   * resolves collaboration tools; global tools never shadow scoped tools.
    */
   const exportCatalog = (
     exp: CliExport,
     ws: WsMeta,
     origin?: InboxOrigin,
   ): { resolve: (name: string) => Tool | null; inventoryNames: () => string[] } => {
+    if (exp.scope === 'mixed') {
+      const scoped = exportCatalog(getExport('workspace')!, ws, origin)
+      return {
+        resolve: name => toolRegistryScope(exp, name) === 'scoped' ? scoped.resolve(name) : toolCenter.get(name),
+        inventoryNames: () => [...new Set([...toolCenter.getInventory().map(t => t.name), ...scoped.inventoryNames()])],
+      }
+    }
     if (exp.scope === 'scoped') {
       // GLOBAL issue-board reader, backed by the live WorkspaceService.
-      // Built here so issue_list / issue_show on `alice-workspace` read EVERY
+      // Built here so issue_list / issue_show on `alice` read EVERY
       // workspace's issues (reads global), while create/update/comment stay
       // caller-local. Absent when the service isn't up yet → tools self-read.
       const svc = getWorkspaceService()

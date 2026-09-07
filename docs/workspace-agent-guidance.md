@@ -37,7 +37,7 @@ One concept has one primary owner:
 
 | Concept | Owner |
 |---|---|
-| Inbox, Issue collaboration, provenance, peer questions, Session nametags | `alice-workspace` |
+| Inbox, Issue collaboration, provenance, peer questions, Session nametags | `alice` (collaboration reference) |
 | Delegating quantitative research from Chat to AutoQuant | `delegate-autoquant` |
 | Issue file shape, ownership, schedules, headless delivery | `self-scheduling` |
 | Low-frequency market/fundamental/macro data | `traderhub` |
@@ -59,22 +59,27 @@ product bug.
 Use the real shim in the verification loop; direct tool calls do not exercise
 argv parsing or manifest help.
 
-The four public CLI names are deliberate authority boundaries rather than one
+The three public CLI names are deliberate authority boundaries rather than one
 flat command bag:
 
 | CLI | Boundary |
 |---|---|
-| `alice` | Workspace research data, subscribed-feed archive, symbols, and bounded K-line analysis |
+| `alice` | Research data, subscribed-feed archive, symbols, K-lines, Workspace collaboration, Inbox, Issues, Sessions and tracked assets |
 | `traderhub` | Low-frequency boards, fundamentals, macro, and calendars |
-| `alice-workspace` | Peer addressing, Agent conversation, human Inbox delivery, durable work, provenance, and Session coworker names |
 | `alice-uta` | Broker reads plus explicit trading mutations and approval flow |
+
+`alice-workspace` remains a compatibility alias for existing scripts. New
+Workspace guidance uses `alice` and its bundled collaboration reference. The
+legacy `/workspace` gateway remains available to older shims; the unified
+`/data` gateway routes each mapped tool to its owning registry, preserving
+Workspace and Session provenance.
 
 Every export manifest supplies intent-first descriptions for its command
 groups. Top-level and group help must explain which namespace owns an action
 before listing verbs. Skills may teach workflows, but an old copied skill must
 be able to recover from current live help.
 
-`alice-workspace inbox read` projects each attached document with a directly
+`alice inbox read` projects each attached document with a directly
 usable absolute path when its source Workspace is available. `peer path` is the
 lower-level addressing primitive for inspecting that desk. In both cases,
 native Coding Agent file, search, and Git capabilities own the read flow. Do

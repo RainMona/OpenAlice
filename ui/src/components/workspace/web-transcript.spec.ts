@@ -22,7 +22,7 @@ describe('groupWebTranscript', () => {
         role: 'assistant',
         content: [
           { type: 'thinking', thinking: 'Push the Inbox entry.' },
-          { type: 'toolCall', id: 'call-bash', name: 'bash', arguments: { command: 'alice-workspace inbox push --doc research/report.md' } },
+          { type: 'toolCall', id: 'call-bash', name: 'bash', arguments: { command: 'alice inbox push --doc research/report.md' } },
         ],
       },
       { role: 'toolResult', toolCallId: 'call-bash', toolName: 'bash', content: [{ type: 'text', text: 'ok' }] },

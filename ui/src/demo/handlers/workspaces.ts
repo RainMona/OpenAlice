@@ -388,7 +388,7 @@ const demoTemplateUpgradePlan = (workspaceId: string) => ({
       currentTruncated: false, templateTruncated: false,
     },
     {
-      path: '.agents/skills/alice-workspace/SKILL.md', status: 'ready', operation: 'update', canUseTemplate: true,
+      path: '.agents/skills/alice/SKILL.md', status: 'ready', operation: 'update', canUseTemplate: true,
       currentPreview: 'Old collaboration guidance.', templatePreview: 'Current collaboration guidance.',
       currentTruncated: false, templateTruncated: false,
     },
@@ -696,7 +696,7 @@ export const workspacesHandlers = [
         fromVersion: '0.1.0',
         toVersion: '0.2.0',
         commit: 'd3m0c0de12345678',
-        changedPaths: ['README.md', '.agents/skills/alice-workspace/SKILL.md'],
+        changedPaths: ['README.md', '.agents/skills/alice/SKILL.md'],
         keptPaths: ['AGENTS.md'],
       },
       workspace,

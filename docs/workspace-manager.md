@@ -82,7 +82,7 @@ prompt flag; their durable native transcript carries it across later resumes.
 The contract says:
 
 - inspect and coordinate the active floor;
-- use the embedded `alice-workspace` CLI instead of raw localhost APIs;
+- use the embedded `alice` CLI instead of raw localhost APIs;
 - ask attributable existing Sessions before reconstructing intent;
 - preview lifecycle/template mutations before applying them;
 - never write reports, research, Issues, or other business artifacts at the
@@ -107,8 +107,8 @@ native runtimes retain the WebGL default.
 Start a floor audit from product indexes:
 
 ```bash
-alice-workspace peer list
-alice-workspace issue list --mode detailed
+alice peer list
+alice issue list --mode detailed
 ```
 
 `peer list` returns active Workspace ids, tags, templates, configured runtimes,
@@ -124,14 +124,14 @@ and the durable cached projection.
 Drill into one selected desk with:
 
 ```bash
-alice-workspace peer path --id <workspaceId>
-alice-workspace peer sessions --id <workspaceId>
-alice-workspace conversation ask --resume-id <resumeId> --prompt "..." --await
+alice peer path --id <workspaceId>
+alice peer sessions --id <workspaceId>
+alice conversation ask --resume-id <resumeId> --prompt "..." --await
 # Recruit a fresh coworker for new work:
-alice-workspace conversation ask --ws-id <workspaceId> --prompt "..."
+alice conversation ask --ws-id <workspaceId> --prompt "..."
 # Reconstruct missing historical intent explicitly:
-alice-workspace conversation ask --ws-id <workspaceId> --prompt "..." --reconstruct --await
-alice-workspace template upgrade --id <workspaceId>
+alice conversation ask --ws-id <workspaceId> --prompt "..." --reconstruct --await
+alice template upgrade --id <workspaceId>
 ```
 
 `--resume-id` continues the exact coworker and should report

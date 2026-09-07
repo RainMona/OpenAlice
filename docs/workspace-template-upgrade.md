@@ -117,10 +117,10 @@ The same transaction is available from inside the current Workspace without
 hand-authoring API calls:
 
 ```bash
-alice-workspace template upgrade          # read-only preview
-alice-workspace template upgrade --apply  # re-plan and apply the exact current plan
-alice-workspace template upgrade --id <workspaceId>          # preview a peer
-alice-workspace template upgrade --id <workspaceId> --apply  # upgrade a paused peer
+alice template upgrade          # read-only preview
+alice template upgrade --apply  # re-plan and apply the exact current plan
+alice template upgrade --id <workspaceId>          # preview a peer
+alice template upgrade --id <workspaceId> --apply  # upgrade a paused peer
 ```
 
 Conflicts require one repeatable `--keep-workspace <path>` or

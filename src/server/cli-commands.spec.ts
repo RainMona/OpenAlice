@@ -55,6 +55,7 @@ describe('CLI_EXPORTS — data export (global tools)', () => {
 
   it('every mapped verb resolves to a registered global tool', () => {
     for (const name of mappedToolNames('data')) {
+      if (mappedToolNames('workspace').has(name)) continue
       expect(tc.get(name), `data CLI maps to missing tool: ${name}`).not.toBeNull()
     }
   })
@@ -65,8 +66,15 @@ describe('CLI_EXPORTS — data export (global tools)', () => {
     expect(getExport('data')?.groupDescriptions).not.toHaveProperty('think')
   })
 
-  it('is scope: global', () => {
-    expect(getExport('data')?.scope).toBe('global')
+  it('includes every collaboration group at the top level without changing its map', () => {
+    for (const [group, verbs] of Object.entries(CLI_EXPORTS.workspace.commands)) {
+      expect(CLI_EXPORTS.data.commands[group]).toEqual(verbs)
+    }
+    expect(CLI_EXPORTS.data.commands).not.toHaveProperty('workspace')
+  })
+
+  it('combines registry scopes', () => {
+    expect(getExport('data')?.scope).toBe('mixed')
   })
 })
 
@@ -156,7 +164,7 @@ describe('CLI_EXPORTS — structure', () => {
     const global = mappedToolNamesForScope('global')
     const scoped = mappedToolNamesForScope('scoped')
     expect(global).toEqual(new Set([
-      ...mappedToolNames('data'),
+      ...[...mappedToolNames('data')].filter(n => !scoped.has(n)),
       ...mappedToolNames('traderhub'),
       ...mappedToolNames('uta'),
     ]))
@@ -166,11 +174,11 @@ describe('CLI_EXPORTS — structure', () => {
 
   it('maps a binary name to its export key (alice -> data, alice-<x> -> <x>)', () => {
     expect(exportKeyForBinary('alice')).toBe('data')
-    expect(exportKeyForBinary('alice-workspace')).toBe('workspace')
+    expect(exportKeyForBinary('alice-workspace')).toBe('data')
     expect(exportKeyForBinary('alice-uta')).toBe('uta')
     // round-trips: each export's declared binary resolves back to its key
     for (const [key, exp] of Object.entries(CLI_EXPORTS)) {
-      expect(exportKeyForBinary(exp.binary)).toBe(key)
+      expect(exportKeyForBinary(exp.binary)).toBe(key === 'workspace' ? 'data' : key)
     }
   })
 
