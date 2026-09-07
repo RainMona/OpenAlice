@@ -19,8 +19,8 @@ import { gzip, gunzip } from 'node:zlib';
 import { exec as gitExec, type IGitStringExecutionOptions } from './git-execution.js';
 
 import { CLI_EXPORTS } from '../server/cli-commands.js';
-import { aliceHarnessSourceVersion, injectAliceHarnessSkills } from './alice-harness-assets.js';
-import { ALICE_HARNESS_VERSION_PATH, ALICE_HARNESS_CONFIG_PATH, LEGACY_ALICE_HARNESS_SKILLS, parseAliceHarnessConfig, isAliceHarnessSkillPath, readAliceHarnessConfig } from './alice-harness-policy.js';
+import { aliceHarnessSourceVersion, aliceHarnessSkillCatalog, injectAliceHarnessSkills } from './alice-harness-assets.js';
+import { ALICE_HARNESS_VERSION_PATH, ALICE_HARNESS_CONFIG_PATH, LEGACY_ALICE_HARNESS_SKILLS, ALICE_HARNESS_SKILLS, parseAliceHarnessConfig, isAliceHarnessSkillPath, readAliceHarnessConfig } from './alice-harness-policy.js';
 import { injectWorkspaceContext } from './context-injector.js';
 import type { Logger } from './logger.js';
 import type { TemplateMeta, TemplateRegistry } from './template-registry.js';
@@ -200,6 +200,22 @@ export class TemplateUpgradeManager {
     }
   }
 
+  async projectHarnessCatalog() {
+    const version = await aliceHarnessSourceVersion();
+    const skills = await aliceHarnessSkillCatalog();
+    const workspaces = [];
+    // Sequential filesystem scans keep large Project inventories bounded.
+    for (const workspace of this.opts.registry.list()) {
+      try {
+        const plan = await this.plan(workspace.id);
+        workspaces.push({ id: workspace.id, name: workspace.tag, template: workspace.template, plan });
+      } catch (error) {
+        workspaces.push({ id: workspace.id, name: workspace.tag, template: workspace.template, error: (error as Error).message });
+      }
+    }
+    return { version, skills, workspaces, commands: Object.fromEntries(Object.values(CLI_EXPORTS).filter((exp) => exp.binary !== 'alice-workspace').map((exp) => [exp.binary, Object.fromEntries(Object.entries(exp.commands).map(([group, verbs]) => [group, Object.keys(verbs)]))])) };
+  }
+
   async harnessStatus(workspaceId: string) {
     const workspace = this.opts.registry.get(workspaceId);
     if (!workspace) throw new TemplateUpgradeError('not_found', 'Workspace not found');
@@ -207,6 +223,7 @@ export class TemplateUpgradeManager {
       appliedVersion: await this.currentVersion(workspace) ?? null,
       availableVersion: await aliceHarnessSourceVersion(),
       runtimeAuthority: 'alice-project' as const,
+      skillDefaults: Object.fromEntries(ALICE_HARNESS_SKILLS.map((name) => [name, this.opts.templates.get(workspace.template ?? '')?.injectTools === true || name === 'self-scheduling'])),
       managedSkillNames: [...LEGACY_ALICE_HARNESS_SKILLS],
       config: await readAliceHarnessConfig(workspace.dir),
       commands: Object.fromEntries(Object.values(CLI_EXPORTS).filter((exp) => exp.binary !== 'alice-workspace').map((exp) => [exp.binary, Object.keys(exp.commands)])),
@@ -430,6 +447,15 @@ export class TemplateUpgradeManager {
       localEntries[index] ?? missingFile(),
       incoming[path] ?? missingFile(),
     ));
+    if (this.opts.aliceHarness) {
+      const policy = await readAliceHarnessConfig(workspace.dir);
+      for (const file of files) {
+        const skill = file.path.split('/')[2] as typeof ALICE_HARNESS_SKILLS[number];
+        if (isAliceHarnessSkillPath(file.path) && policy.skills?.[skill] === false && file.status === 'preserved') {
+          Object.assign(file, { status: 'conflict', operation: 'remove', note: 'This Skill is excluded, but contains local files. Review before removing.' });
+        }
+      }
+    }
     const activity = this.opts.workspaceRuntimeActivity?.(workspace.id) ?? {
       busy: false,
       sessions: [],

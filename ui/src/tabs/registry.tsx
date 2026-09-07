@@ -20,6 +20,7 @@ import { MARKET_BOARD_TITLES } from '../pages/market-board-titles'
 import { MarketDetailPage } from '../pages/MarketDetailPage'
 import { AppearanceSettingsPage, SettingsPage, ToolsSettingsPage } from '../pages/SettingsPage'
 import { ActivityBarSettingsPage } from '../pages/ActivityBarSettingsPage'
+import { WorkspaceInjectionPage } from '../pages/WorkspaceInjectionPage'
 import { BetaSettingsPage } from '../pages/BetaSettingsPage'
 import { AgentPermissionsPage } from '../pages/AgentPermissionsPage'
 import { AgentRuntimesSettingsPage } from '../pages/AgentRuntimesSettingsPage'
@@ -278,6 +279,7 @@ const settingsCategoryTitle: Record<
   mcp: 'MCP Server',
   'market-data': 'Market Data',
   'news-collector': 'News Sources',
+  'workspace-injection': 'Workspace injection',
   beta: 'Beta',
 }
 
@@ -297,6 +299,7 @@ function SettingsRouter({ spec }: ViewProps<'settings'>) {
     case 'mcp': return <MCPPage />
     case 'market-data': return <MarketDataPage />
     case 'news-collector': return <NewsCollectorPage />
+    case 'workspace-injection': return <WorkspaceInjectionPage />
     case 'beta': return <BetaSettingsPage />
   }
 }

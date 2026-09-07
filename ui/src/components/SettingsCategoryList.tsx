@@ -85,6 +85,7 @@ const CATEGORY_GROUPS = [
     items: [
       { labelKey: 'settings.category.trading', category: 'trading', Icon: CandlestickChart },
       { labelKey: 'settings.category.issues', category: 'issues', Icon: ListChecks },
+      { labelKey: 'distribution.title', category: 'workspace-injection', Icon: Code2 },
       { labelKey: 'settings.category.harness', category: 'harness', Icon: Layers3 },
       { labelKey: 'settings.category.beta', category: 'beta', Icon: FlaskConical },
     ],

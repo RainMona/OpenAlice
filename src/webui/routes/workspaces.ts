@@ -1400,6 +1400,11 @@ export function createWorkspaceRoutes(
     }
   });
 
+  app.get('/alice-harness/catalog', async (c) => {
+    try { return c.json(await svc.aliceHarnessUpgrades.projectHarnessCatalog()); }
+    catch (error) { return c.json({ error: (error as Error).message }, 500); }
+  });
+
   app.get('/:id/alice-harness', async (c) => {
     try { return c.json(await svc.aliceHarnessUpgrades.harnessStatus(c.req.param('id'))); }
     catch (error) { return c.json({ error: (error as Error).message }, error instanceof TemplateUpgradeError && error.code === 'not_found' ? 404 : 400); }

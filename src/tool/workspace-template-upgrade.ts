@@ -221,6 +221,6 @@ export const aliceHarnessUpgradeFactory: WorkspaceToolFactory = {
   name: 'alice_harness_upgrade',
   build(ctx) {
     const result = workspaceTemplateUpgradeFactory.build({ ...ctx, templateUpgrades: ctx.aliceHarnessUpgrades })
-    return { ...result, description: result.description?.replace('managed template upgrade', 'Alice Harness CLI/Skills injection upgrade (independent of the Workspace template/source version)') }
+    return { ...result, description: result.description?.replace('managed template upgrade', 'Alice Harness Skills file update (respects Workspace Skill preferences; CLI runtime updates with the Project, independently of this operation)') }
   },
 }

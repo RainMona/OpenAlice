@@ -220,8 +220,13 @@ injection layer with `alice harness upgrade` (preview) and `alice harness upgrad
 --apply` (a paused Workspace is required; a manager may target a peer with `--id`).
 Use `alice template upgrade` only for template-owned instructions and skills.
 
-`.alice/alice-harness-version.json` records the accepted injection revision.
-`.alice/alice-harness-config.json` controls enabled CLIs and command groups;
+`.alice/alice-harness-version.json` records the accepted Skills file-bundle revision.
+`.alice/alice-harness-config.json` controls enabled CLIs/command groups and independent Skill inclusion preferences;
 disabled commands are unavailable through the gateway, including old aliases.
 The live Project supplies execution, so the recorded revision does not pin an
 old binary. Always discover available commands with `alice --help`.
+
+CLI implementation updates follow the running Alice Project; they do not require
+a per-Workspace file update. `alice harness upgrade` updates Skills files only.
+A CLI switch does not remove its Skill, and excluding a Skill does not disable
+its commands. Respect the Workspace's `skills` preferences during later updates.

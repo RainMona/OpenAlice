@@ -9,6 +9,7 @@ export const ALICE_HARNESS_SKILLS = ['alice', 'alice-analysis', 'alice-uta', 'tr
 export const LEGACY_ALICE_HARNESS_SKILLS = [...ALICE_HARNESS_SKILLS, 'alice-workspace']
 export const aliceHarnessConfigSchema = z.object({
   schemaVersion: z.literal(1),
+  skills: z.partialRecord(z.enum(ALICE_HARNESS_SKILLS), z.boolean()).optional(),
   cli: z.record(z.string(), z.object({
     enabled: z.boolean().optional(),
     groups: z.record(z.string(), z.boolean()).optional(),

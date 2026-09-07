@@ -1,15 +1,16 @@
 # Alice Harness injection
 
-Alice Project provides Workspace CLI contracts and companion Skills independently
-of the Workspace Harness. Chat template versions, AutoQuant source pins, and
+Alice Project provides CLI runtime capabilities and companion Skills independently
+of the Workspace Harness. Workspace CLI switches and Skill inclusion preferences
+are separate; only copied Skill files need an explicit Workspace update. Chat template versions, AutoQuant source pins, and
 Auto Prediction source pins do not version this injection layer.
 
 ## Version authority
 
 `default/alice-harness.json` declares the Project's injection release version.
-Its effective revision appends a content fingerprint of the public CLI command
-registry and complete owned skill trees. Bump the declared version for behavior
-changes not represented in those assets. Updating these assets does not require
+Its effective revision appends a content fingerprint of the complete owned Skill
+trees only. CLI implementation/registry changes do not change this file-bundle
+revision; update the Skills documentation and its release when the contract changes. Updating these assets does not require
 bumping a Chat/AQ/AP template version.
 
 Each newly created Workspace records accepted state at
@@ -35,11 +36,12 @@ and do not advance Alice injection metadata.
 ## Workspace configuration
 
 `.alice/alice-harness-config.json` is Workspace-owned, tracked configuration.
-Omitted entries are enabled. A CLI-wide disable wins over group switches:
+Omitted CLI entries are enabled. A CLI-wide disable wins over group switches:
 
 ```json
 {
   "schemaVersion": 1,
+  "skills": { "traderhub": false },
   "cli": {
     "alice": { "groups": { "rss": false } },
     "alice-uta": { "enabled": false }
@@ -54,16 +56,26 @@ configuration error. This is customization of Workspace capabilities, not a
 sandbox against an Agent allowed to edit its own files. UTA permission and
 trading-write authority remain unchanged.
 
-Saving configuration does not overwrite skill files. An independent injection
-preview reflects the current configuration; a wholly disabled CLI's companion
-Skills are omitted from Incoming. Group-level restrictions remain discoverable
-through live help even when a shared Skill discusses other groups. Customized
-Skills follow ordinary three-way conflict/preservation rules.
+Saving configuration applies CLI switches immediately but does not overwrite
+Skill files. `skills` is an optional name-to-boolean inclusion map. Omitted
+entries follow the template's original default (`injectTools`, plus the always
+included self-scheduling Skill); explicit inclusion/exclusion overrides that
+default. CLI switches never add or remove Skills, and excluding a Skill never
+disables commands. A later update reconciles excluded files, with local edits
+requiring review rather than silent deletion. Exclusions remain in effect until
+the Workspace changes its preference. They never remove the Project prototype:
+re-enabling a Skill restores its files on the next update, even at the same bundle
+revision and with its CLI disabled.
 
 ## Independent upgrade
 
-Workspace details → CLI → Alice Harness → Manage offers status, command
-switches and a file review. The API is `/api/workspaces/:id/alice-harness`,
+Project Settings → Workspace injection owns the Project CLI catalog, source Skills
+browser, Workspace update inventory and batch updates. Batch updates use the
+displayed digests and skip busy/conflicting entries; each Workspace succeeds or
+fails independently. Workspace details owns CLI/Skill preferences and a link to
+Project management. Unversioned matching files need only a baseline/version
+record; differing files enter the same update review. The Project catalog API is `/api/workspaces/alice-harness/catalog`. Per-Workspace
+APIs are `/api/workspaces/:id/alice-harness`,
 `PUT .../alice-harness/config`, and `GET/POST .../alice-harness-upgrade`.
 The CLI offers `alice harness upgrade` and `alice harness upgrade --apply`, with
 `--id` for a peer and the same per-file conflict flags as template upgrades.

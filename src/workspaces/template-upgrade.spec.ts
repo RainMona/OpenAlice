@@ -84,7 +84,26 @@ describe('TemplateUpgradeManager', () => {
     expect(status.managedSkillNames).not.toContain('template-skill');
   });
 
-  it('adopts missing policy transactionally and reconciles a disable at the same revision', async () => {
+  it('keeps the Project source catalog and healthy Workspace visible when another checkout is missing', async () => {
+    await registry.add({ ...workspace, id: 'missing', tag: 'missing', dir: join(root, 'missing-checkout') });
+    const catalog = await manager(false, true).projectHarnessCatalog();
+    expect(catalog.skills.find((skill) => skill.name === 'alice')?.files.some((entry) => entry.path === 'SKILL.md')).toBe(true);
+    expect(catalog.workspaces.find((entry) => entry.id === workspace.id)?.plan).toBeDefined();
+    expect(catalog.workspaces.find((entry) => entry.id === 'missing')?.error).toBeTruthy();
+  });
+
+  it('requires review before removing locally added files from an excluded Skill', async () => {
+    await mkdir(join(workspace.dir, '.agents/skills/alice'), { recursive: true });
+    await writeFile(join(workspace.dir, '.agents/skills/alice/local.md'), 'local research');
+    const upgrade = new TemplateUpgradeManager({ registry, templates: { get: () => template } as unknown as TemplateRegistry, logger, aliceHarness: true });
+    await upgrade.configureHarness(workspace.id, { schemaVersion: 1, cli: {}, skills: { alice: false } });
+    const preview = await upgrade.plan(workspace.id);
+    expect(preview.files.find((entry) => entry.path === '.agents/skills/alice/local.md')).toMatchObject({ status: 'conflict', operation: 'remove' });
+    await expect(upgrade.apply(workspace.id, { planDigest: preview.planDigest })).rejects.toThrow();
+    expect(await readFile(join(workspace.dir, '.agents/skills/alice/local.md'), 'utf8')).toBe('local research');
+  });
+
+  it('adopts policy and removes or restores a Skill independently of CLI switches at the same revision', async () => {
     const upgrade = new TemplateUpgradeManager({ registry, templates: { get: () => template } as unknown as TemplateRegistry, logger, aliceHarness: true });
     const preview = await upgrade.plan(workspace.id);
     expect(preview.files.find((entry) => entry.path === '.alice/alice-harness-config.json')?.operation).toBe('add');
@@ -92,6 +111,9 @@ describe('TemplateUpgradeManager', () => {
     await upgrade.apply(workspace.id, { planDigest: preview.planDigest });
     expect(JSON.parse(await readFile(join(workspace.dir, '.alice/alice-harness-config.json'), 'utf8'))).toEqual({ schemaVersion: 1, cli: {} });
     await upgrade.configureHarness(workspace.id, { schemaVersion: 1, cli: { alice: { enabled: false } } });
+    const cliOnly = await upgrade.plan(workspace.id);
+    expect(cliOnly.files.find((entry) => entry.path === '.agents/skills/alice/SKILL.md')?.status).toBe('unchanged');
+    await upgrade.configureHarness(workspace.id, { schemaVersion: 1, cli: { alice: { enabled: false } }, skills: { alice: false } });
     const disabled = await upgrade.plan(workspace.id);
     expect(disabled.fromVersion).toBe(disabled.toVersion);
     expect(disabled.files.find((entry) => entry.path === '.agents/skills/alice/SKILL.md')?.operation).toBe('remove');
@@ -99,6 +121,20 @@ describe('TemplateUpgradeManager', () => {
     await expect(readFile(join(workspace.dir, '.agents/skills/alice/SKILL.md'))).rejects.toMatchObject({ code: 'ENOENT' });
     expect(JSON.parse(await readFile(join(workspace.dir, '.alice/alice-harness-config.json'), 'utf8')).cli.alice.enabled).toBe(false);
     expect(await upgrade.currentVersion(workspace)).toBe(preview.toVersion);
+    const next = await upgrade.plan(workspace.id);
+    expect(next.files.some((entry) => entry.path === '.agents/skills/alice/SKILL.md' && entry.operation === 'add')).toBe(false);
+    expect(await readFile(join(workspace.dir, '.agents/skills/alice-analysis/SKILL.md'), 'utf8')).toBeTruthy();
+    await upgrade.configureHarness(workspace.id, { schemaVersion: 1, cli: { alice: { enabled: false } }, skills: { alice: true } });
+    const restored = await upgrade.plan(workspace.id);
+    expect(restored.fromVersion).toBe(restored.toVersion);
+    for (const directory of ['.agents', '.claude']) {
+      expect(restored.files.find((entry) => entry.path === `${directory}/skills/alice/SKILL.md`)).toMatchObject({ status: 'ready', operation: 'add' });
+    }
+    await upgrade.apply(workspace.id, { planDigest: restored.planDigest });
+    const canonical = await readFile(join(workspace.dir, '.agents/skills/alice/SKILL.md'), 'utf8');
+    expect(canonical).toBeTruthy();
+    expect(await readFile(join(workspace.dir, '.claude/skills/alice/SKILL.md'), 'utf8')).toBe(canonical);
+    expect(JSON.parse(await readFile(join(workspace.dir, '.alice/alice-harness-config.json'), 'utf8')).cli.alice.enabled).toBe(false);
   });
 
   it('upgrades Alice skills without changing a source-owned Harness or local config', async () => {

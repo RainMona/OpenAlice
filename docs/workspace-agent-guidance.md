@@ -152,7 +152,11 @@ outside this browser's scope.
 
 ## Independent injection releases
 
-Project-provided CLI and companion Skills are owned and independently versioned
-by [[docs/alice-harness.md]]. Workspace details → CLI → Alice Harness exposes
-accepted/available revisions, command switches and three-way injection upgrade.
-Changing those Skills no longer requires a Chat/AQ/AP template version bump.
+The Project supplies CLI runtime and companion Skill sources, as described in
+[[docs/alice-harness.md]]. CLI follows the running Project; only copied Skill
+files need an explicit update. Settings → Workspace injection owns the source
+catalog, per-Workspace comparisons and batch updates. Workspace details → CLI →
+Alice Harness exposes the installed file revision and independent preferences
+for command availability and retained Skills. Updates respect those preferences
+and review local changes. Changing these Skills does not require a Chat/AQ/AP
+template version bump.
