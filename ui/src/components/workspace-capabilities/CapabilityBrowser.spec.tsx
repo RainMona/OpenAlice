@@ -77,3 +77,18 @@ it('shows required flags and raw schema without offering execution', () => {
     screen.queryByRole('button', { name: /execute|run command/i }),
   ).toBeNull()
 })
+
+it('collapses command groups without losing the reader and reveals search matches', () => {
+  render(<CliBrowser wsId="one" />)
+  const group = screen.getByRole('button', { name: 'test' })
+  fireEvent.click(group)
+  expect(group.getAttribute('aria-expanded')).toBe('false')
+  expect(screen.getByText('alice test inspect --symbol <symbol>')).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'inspect' })).toBeNull()
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'inspect' } })
+  expect(screen.getByRole('button', { name: 'inspect' })).toBeTruthy()
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: '' } })
+  expect(group.getAttribute('aria-expanded')).toBe('false')
+  fireEvent.click(group)
+  expect(screen.getByRole('button', { name: 'inspect' })).toBeTruthy()
+})
