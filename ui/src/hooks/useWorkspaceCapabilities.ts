@@ -44,10 +44,12 @@ export interface WorkspaceSkill {
   path: string
   content: ReadFileResult
   locations: string[]
+  source?: 'canonical' | 'mirror-only' | 'legacy' | 'unchecked'
+  mirrors?: { path: string; label: string; present?: boolean }[]
 }
 export interface CapabilityInventory {
   skills: WorkspaceSkill[]
-  instructions: { path: string; content: ReadFileResult }[]
+  instructions: WorkspaceSkill[]
   errors: string[]
   roots: string[]
 }
@@ -96,23 +98,71 @@ export async function loadWorkspaceCapabilities(
     }),
   )
   const grouped: WorkspaceSkill[] = []
-  for (const skill of skills.sort((a, b) => a.path.localeCompare(b.path))) {
-    const same = grouped.find(
-      (other) =>
-        other.name === skill.name &&
-        other.content.kind === 'ok' &&
-        skill.content.kind === 'ok' &&
-        other.content.content === skill.content.content,
-    )
-    if (same) same.locations.push(skill.path)
-    else grouped.push(skill)
+  for (const name of [...new Set(skills.map((s) => s.name))]) {
+    const copies = skills.filter((s) => s.name === name)
+    const primary = copies.find((s) => s.path.startsWith('.agents/'))
+    const claude = copies.find((s) => s.path.startsWith('.claude/'))
+    const pi = copies.find((s) => s.path.startsWith('.pi/'))
+    const chosen = primary ?? claude ?? pi!
+    grouped.push({
+      ...chosen,
+      locations: copies.map((s) => s.path),
+      source: primary
+        ? 'canonical'
+        : errors.some((e) => e.startsWith('.agents:'))
+          ? 'unchecked'
+          : claude
+            ? 'mirror-only'
+            : 'legacy',
+      mirrors: [
+        {
+          path: `.claude/skills/${name}`,
+          label: 'Claude',
+          present: errors.some((e) => e.startsWith('.claude:'))
+            ? undefined
+            : Boolean(claude),
+        },
+        ...(pi
+          ? [{ path: `.pi/skills/${name}`, label: 'Pi', present: true }]
+          : []),
+      ],
+    })
   }
-  const instructions = await Promise.all(
-    ['AGENTS.md', 'CLAUDE.md'].map(async (path) => ({
-      path,
-      content: await readWorkspaceFile(wsId, path),
-    })),
+  const [agents, claude] = await Promise.all(
+    ['AGENTS.md', 'CLAUDE.md'].map((path) => readWorkspaceFile(wsId, path)),
   )
+  const instructions: WorkspaceSkill[] = [
+    {
+      name: 'AGENTS.md',
+      path:
+        agents.kind === 'file_missing' && claude.kind === 'ok'
+          ? 'CLAUDE.md'
+          : 'AGENTS.md',
+      content:
+        agents.kind === 'file_missing' && claude.kind === 'ok'
+          ? claude
+          : agents,
+      locations: ['AGENTS.md'],
+      source:
+        agents.kind === 'ok'
+          ? 'canonical'
+          : agents.kind === 'file_missing'
+            ? 'mirror-only'
+            : 'unchecked',
+      mirrors: [
+        {
+          path: 'CLAUDE.md',
+          label: 'Claude',
+          present:
+            claude.kind === 'file_missing'
+              ? false
+              : claude.kind === 'ok'
+                ? true
+                : undefined,
+        },
+      ],
+    },
+  ]
   for (const skill of grouped) {
     if (skill.content.kind !== 'ok') continue
     const header = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(

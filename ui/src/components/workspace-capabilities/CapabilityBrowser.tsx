@@ -26,6 +26,7 @@ import {
   stripFrontmatter,
   type ReadFileResult,
 } from '../workspace/api'
+import { MirrorDetails } from './MirrorDetails'
 import './capabilities.css'
 
 function SearchBox({
@@ -223,16 +224,7 @@ export function CapabilityBrowser({
   const data = state?.data
   const items = useMemo(
     () =>
-      !data
-        ? []
-        : view === 'instructions'
-          ? data.instructions.map((i) => ({
-              ...i,
-              name: i.path,
-              description: undefined as string | undefined,
-              locations: [i.path],
-            }))
-          : data.skills,
+      !data ? [] : view === 'instructions' ? data.instructions : data.skills,
     [data, view],
   )
   const filtered = items.filter((i) =>
@@ -345,12 +337,7 @@ export function CapabilityBrowser({
                 <BookOpen size={15} aria-hidden />
                 <span>
                   <strong>{i.name}</strong>
-                  <small>
-                    {i.locations.length > 1
-                      ? t('capabilities.copies', { count: i.locations.length })
-                      : i.path.split('/').slice(0, -1).join('/') ||
-                        t('capabilities.workspaceFile')}
-                  </small>
+                  <small>{t(`mirrors.${i.source ?? 'canonical'}`)}</small>
                 </span>
                 <ChevronRight size={13} aria-hidden />
               </button>
@@ -378,12 +365,14 @@ export function CapabilityBrowser({
                 </span>
                 <h2>{current.name}</h2>
                 {current.description && <p>{current.description}</p>}
-                {current.locations.map((p) => (
-                  <code className="cap-path" key={p}>
-                    {p}
-                  </code>
-                ))}
+                <code className="cap-path">{current.path}</code>
               </div>
+              <MirrorDetails
+                key={current.path}
+                wsId={wsId}
+                skill={current}
+                instructions={view === 'instructions'}
+              />
               {view === 'skills' && (
                 <SkillFiles
                   key={current.path}

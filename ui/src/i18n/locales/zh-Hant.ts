@@ -10,6 +10,24 @@ import type { Resources } from './en'
  * Content is UI chrome only — no geographic or other non-technical terms.
  */
 export const zhHant: Resources = {
+  mirrors: {
+    "canonical": "主源",
+    "mirror-only": "僅有鏡像",
+    "legacy": "舊版副本",
+    "mirror": "鏡像",
+    "source": "主源",
+    "noSource": "主源缺失，仍可查閱此執行環境副本，不會覆寫其內容。",
+    "primaryHint": "預設閱讀主源，下方核對執行環境鏡像，內容不同仍屬同一項內容。",
+    "checking": "正在核對目錄…",
+    "unchecked": "未能完整核對",
+    "changed": "存在差異",
+    "equal": "內容一致",
+    "scope": "檢查整個目錄，包括腳本、範例與空目錄。連結、無法讀取、過大或無法解碼的檔案，以及超出遍歷上限的內容會標為未核對。這是唯讀快照，不是持續同步。",
+    "sourceOnly": "鏡像缺少",
+    "mirrorOnly": "僅鏡像存在",
+    "absent": "缺失",
+    "directory": "目錄"
+},
   capabilities: {
     "search": "搜尋名稱與內容…",
     "copy": "複製命令",
@@ -26,7 +44,7 @@ export const zhHant: Resources = {
     "copies": "{{count}} 份相同副本",
     "workspaceFile": "Workspace 檔案",
     "actualHint": "直接讀取此 Workspace，不根據檔名推斷來源或載入狀態。",
-    "skillsHint": "查閱磁碟上的操作流程。相同副本合併顯示，內容不同的副本分別保留。",
+    "skillsHint": "查閱 Workspace 技能主源與執行環境鏡像。",
     "instructionsHint": "此 Workspace 中實際存在的指令文件。",
     "empty": "沒有符合的內容。",
     "live": "即時命令清單",

@@ -2,6 +2,24 @@ import type { Resources } from './en'
 
 /** 简体中文. Typed as `Resources` → must match en's key structure exactly. */
 export const zh: Resources = {
+  mirrors: {
+    "canonical": "主源",
+    "mirror-only": "仅有镜像",
+    "legacy": "旧版副本",
+    "mirror": "镜像",
+    "source": "主源",
+    "noSource": "主源缺失。仍可查阅这个运行时副本，不会覆盖其内容。",
+    "primaryHint": "默认阅读主源。下方核对运行时镜像，内容偏离也只对应同一项内容。",
+    "checking": "正在核对目录…",
+    "unchecked": "未能完整核对",
+    "changed": "存在差异",
+    "equal": "内容一致",
+    "scope": "检查整个目录，包括脚本、示例和空目录。符号链接、无法读取、过大或无法解码的文件，以及超出遍历上限的内容会保留为未核对。这是只读快照，不是持续同步。",
+    "sourceOnly": "镜像缺少",
+    "mirrorOnly": "仅镜像存在",
+    "absent": "缺失",
+    "directory": "目录"
+},
   capabilities: {
     "search": "搜索名称与内容…",
     "copy": "复制命令",
@@ -18,7 +36,7 @@ export const zh: Resources = {
     "copies": "{{count}} 份相同副本",
     "workspaceFile": "工作区实际文件",
     "actualHint": "直接读取当前工作区。文件名不能证明来源，也不代表运行时已加载。",
-    "skillsHint": "浏览工作区里的技能与工作方法。相同内容合并展示，内容不同的副本分别保留。",
+    "skillsHint": "查阅 Workspace 技能主源与运行时镜像。",
     "instructionsHint": "查看这个工作区当前实际保存的指令文件。",
     "empty": "没有匹配的内容。",
     "live": "实时命令清单",

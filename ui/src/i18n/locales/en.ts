@@ -13,6 +13,24 @@
  */
 
 export const en = {
+  mirrors: {
+    "canonical": "Primary source",
+    "mirror-only": "Mirror only",
+    "legacy": "Legacy copy",
+    "mirror": "mirror",
+    "source": "Primary source",
+    "noSource": "The primary source is missing. This runtime copy remains available for inspection; nothing is overwritten.",
+    "primaryHint": "Read the primary source here. Runtime copies are compared below; differences do not create a second skill.",
+    "checking": "Checking directory…",
+    "unchecked": "Not fully verified",
+    "changed": "Differences found",
+    "equal": "Contents match",
+    "scope": "Compares the complete directory, including scripts, examples and empty folders. Links, unreadable or oversized files, undecodable content and traversal limits remain unverified. This is a read-only snapshot, not ongoing synchronization.",
+    "sourceOnly": "Missing from mirror",
+    "mirrorOnly": "Only in mirror",
+    "absent": "Missing",
+    "directory": "Directory"
+},
   capabilities: {
     "search": "Search names and content…",
     "copy": "Copy command",
@@ -29,7 +47,7 @@ export const en = {
     "copies": "{{count}} identical copies",
     "workspaceFile": "Workspace file",
     "actualHint": "Read directly from this Workspace. Origin and runtime loading are not inferred from the filename.",
-    "skillsHint": "Explore the procedures available on disk. Identical copies are grouped; divergent copies stay separate.",
+    "skillsHint": "Browse primary Workspace skills and inspect runtime mirrors.",
     "instructionsHint": "The current instruction files, exactly as they exist in this Workspace.",
     "empty": "No matching content.",
     "live": "Live manifest",

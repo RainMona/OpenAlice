@@ -24,7 +24,7 @@ const listing = (...names: string[]) => ({
   entries: names.map((name) => ({ name, kind: 'dir' })),
 })
 describe('Workspace capability inventory', () => {
-  it('groups identical copies, retains divergent files and reports unavailable roots', async () => {
+  it('groups by skill identity with the agents source even when mirrors diverge', async () => {
     mocks.list.mockImplementation(async (_id, path) =>
       path === ''
         ? listing('.agents', '.claude', '.pi')
@@ -41,7 +41,7 @@ describe('Workspace capability inventory', () => {
         : path,
     }))
     const data = await loadWorkspaceCapabilities('one')
-    expect(data.skills).toHaveLength(3)
+    expect(data.skills).toHaveLength(2)
     expect(data.skills.find((s) => s.name === 'same')?.locations).toHaveLength(
       2,
     )
@@ -49,10 +49,15 @@ describe('Workspace capability inventory', () => {
       'A folded skill description',
     )
     expect(data.errors[0]).toContain('unreachable')
-    expect(data.instructions.map((i) => i.path)).toEqual([
-      'AGENTS.md',
-      'CLAUDE.md',
-    ])
+    expect(data.instructions.map((i) => i.path)).toEqual(['AGENTS.md'])
+    expect(
+      data.skills.every(
+        (s) => s.source === 'canonical' && s.path.startsWith('.agents/'),
+      ),
+    ).toBe(true)
+    expect(
+      data.skills.find((s) => s.name === 'changed')?.mirrors?.[0].present,
+    ).toBe(true)
   })
   it('never exposes a late inventory from the previous Workspace', async () => {
     let resolve!: (v: unknown) => void
@@ -87,5 +92,30 @@ describe('Workspace capability inventory', () => {
     await waitFor(() => expect(result.current?.error).toBe('offline'))
     rerender({ attempt: 1 })
     await waitFor(() => expect(result.current?.data?.groups).toEqual({}))
+  })
+})
+
+it('keeps an orphan Claude skill inspectable under one identity', async () => {
+  mocks.list.mockImplementation(async (_id, path) =>
+    path === ''
+      ? listing('.claude')
+      : path === '.claude'
+        ? listing('skills')
+        : listing('orphan'),
+  )
+  mocks.read.mockImplementation(async (_id, path) =>
+    path === 'AGENTS.md'
+      ? { kind: 'file_missing' }
+      : { kind: 'ok', content: 'local edit' },
+  )
+  const data = await loadWorkspaceCapabilities('orphan')
+  expect(data.skills).toHaveLength(1)
+  expect(data.skills[0]).toMatchObject({
+    source: 'mirror-only',
+    path: '.claude/skills/orphan/SKILL.md',
+  })
+  expect(data.instructions[0]).toMatchObject({
+    source: 'mirror-only',
+    path: 'CLAUDE.md',
   })
 })

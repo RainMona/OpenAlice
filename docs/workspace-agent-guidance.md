@@ -99,9 +99,17 @@ skills that a user deliberately preserves.
 
 The Workspace details page is a read-only capability browser. Skills are read
 through the existing Workspace file API from `.agents/skills`, `.claude/skills`,
-and `.pi/skills`; AGENTS.md and CLAUDE.md have a separate instruction view.
-Identical skill names and contents are grouped with their paths, while divergent
-copies remain separate. Supporting files and Markdown source are inspectable.
+and `.pi/skills`. Each skill has one identity: `.agents/skills` is the Workspace
+primary source, `.claude/skills` is its runtime mirror, and existing `.pi/skills`
+entries are legacy copies. Instructions similarly present AGENTS.md with its
+CLAUDE.md mirror. Missing primary sources retain inspectable runtime copies.
+
+Selecting an item compares its complete directory (including supporting files
+and empty folders). Missing, extra and changed entries have a side-by-side text
+view. Links, read failures, oversized or undecodable content and traversal limits
+are unverified, never equal. Traversal is bounded to 2,000 operations and 24 levels.
+This is a read-only snapshot, not a sync service. Template injection and upgrades
+still own writes; divergent content is never automatically overwritten.
 This inventory describes files on disk, not proof that a native runtime loaded
 them, and does not inventory user-level or other native skill directories.
 
