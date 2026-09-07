@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   BookOpen,
   ChevronRight,
-  Code2,
   Copy,
   FileText,
   Search,
@@ -12,6 +11,7 @@ import {
   Check,
 } from 'lucide-react'
 import { Button } from '../ui/button'
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '../ui/collapsible'
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs'
 import { FileContentView } from '../FileContentView'
 import { CenteredLoading } from '../StateViews'
@@ -417,6 +417,7 @@ export function CliBrowser({ wsId }: { wsId: string }) {
   const [attempt, setAttempt] = useState(0)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState('')
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [mobileDetail, setMobileDetail] = useState(false)
   const state = useWorkspaceCli(wsId, exportKey, attempt)
   const manifest = state?.data
@@ -474,36 +475,43 @@ export function CliBrowser({ wsId }: { wsId: string }) {
           <aside className="cap-directory">
             <SearchBox value={query} onChange={setQuery} />
             <nav aria-label={t('capabilities.commands')}>
-              {Object.keys(manifest?.groups ?? {}).map((group) => (
-                <section key={group}>
-                  {filtered.some((c) => c.group === group) && (
-                    <h3 title={manifest?.groupDescriptions?.[group]}>
-                      {group}
+              {Object.keys(manifest?.groups ?? {}).map((group) => {
+                const items = filtered.filter((c) => c.group === group)
+                if (!items.length) return null
+                const key = `${exportKey}:${group}`
+                const open = Boolean(query.trim()) || !collapsed[key]
+                return (
+                  <Collapsible
+                    key={key}
+                    className="cap-cli-group"
+                    open={open}
+                    onOpenChange={(value) => setCollapsed((previous) => ({ ...previous, [key]: !value }))}
+                  >
+                    <h3>
+                      <CollapsibleTrigger className="cap-cli-group-trigger" title={manifest?.groupDescriptions?.[group]}>
+                        <ChevronRight size={13} aria-hidden className={open ? 'is-open' : ''} />
+                        <span>{group}</span>
+                        <small aria-hidden>{items.length}</small>
+                      </CollapsibleTrigger>
                     </h3>
-                  )}
-                  {filtered
-                    .filter((c) => c.group === group)
-                    .map((c) => (
-                      <button
-                        className="cap-row"
-                        key={c.name}
-                        aria-current={
-                          current?.name === c.name ? 'page' : undefined
-                        }
-                        onClick={() => {
-                          setSelected(c.name)
-                          setMobileDetail(true)
-                        }}
-                      >
-                        <Code2 size={14} />
-                        <span>
-                          <strong>{c.verb}</strong>
-                        </span>
-                        <ChevronRight size={13} />
-                      </button>
-                    ))}
-                </section>
-              ))}
+                    <CollapsibleContent inert={!open} aria-hidden={!open || undefined}>
+                      {items.map((c) => (
+                        <button
+                          className="cap-row cap-cli-row"
+                          key={c.name}
+                          aria-current={current?.name === c.name ? 'page' : undefined}
+                          onClick={() => {
+                            setSelected(c.name)
+                            setMobileDetail(true)
+                          }}
+                        >
+                          <span><strong>{c.verb}</strong></span>
+                        </button>
+                      ))}
+                    </CollapsibleContent>
+                  </Collapsible>
+                )
+              })}
             </nav>
             {!filtered.length && (
               <p className="cap-empty">{t('capabilities.empty')}</p>

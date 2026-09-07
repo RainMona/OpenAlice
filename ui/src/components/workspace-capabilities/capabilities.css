@@ -379,3 +379,49 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* CLI navigation is a compact directory; skill rows retain their summaries. */
+.cap-cli-group + .cap-cli-group { margin-top: 6px; }
+.cap-directory .cap-cli-group h3 { padding: 0; }
+.cap-cli-group-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 30px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  text-align: left;
+  font-size: 12px;
+  color: var(--foreground);
+}
+.cap-cli-group-trigger:hover { background: var(--accent); }
+.cap-cli-group-trigger:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+.cap-cli-group-trigger span { flex: 1; }
+.cap-cli-group-trigger small {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+.cap-cli-group-trigger svg {
+  stroke-width: 1.5;
+  color: var(--muted-foreground);
+  transition: transform var(--motion-fast);
+}
+.cap-cli-group-trigger svg.is-open { transform: rotate(90deg); }
+.cap-cli-row {
+  min-height: 28px;
+  padding: 4px 9px 4px 27px;
+  border-radius: 4px;
+}
+.cap-cli-row strong { font-weight: 400; line-height: 20px; }
+@media (pointer: coarse), (max-width: 640px) {
+  .cap-cli-row, .cap-cli-group-trigger { min-height: 40px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cap-cli-group-trigger svg { transition: none; }
+}
