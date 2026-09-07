@@ -141,7 +141,7 @@ const BASE_EXPORTS: Record<string, CliExport> = {
       signature: 'Show this Session\'s safe product identity',
       session: 'Rename or inspect this Workspace\'s product Sessions',
       track: 'Maintain the shared index of durable assets and topics',
-      harness: 'Manage independently versioned Alice Project CLI and Skills injection',
+      harness: 'Review and update Project-provided Skill files while respecting Workspace preferences',
       template: 'Preview or apply managed Workspace-template updates',
     },
     commands: {

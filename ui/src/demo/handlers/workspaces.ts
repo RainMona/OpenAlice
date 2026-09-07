@@ -662,8 +662,20 @@ export const workspacesHandlers = [
     })
     return HttpResponse.json({ ok: true })
   }),
+  http.get('/api/workspaces/alice-harness/catalog', () => HttpResponse.json({
+    version: '1.0.0+demo-skills',
+    commands: { alice: { rss: ['glob', 'grep', 'read'], harness: ['upgrade'] }, traderhub: { equity: ['profile'] }, 'alice-uta': { account: ['list'] } },
+    skills: [{ name: 'alice', files: [{ path: 'SKILL.md', content: '# Alice\n\nProject-provided collaboration and data CLI guidance.' }] }],
+    workspaces: demoWorkspaces.map((ws) => ({ id: ws.id, name: ws.tag, template: ws.template, plan: {
+      ...demoTemplateUpgradePlan(ws.id), template: 'alice-harness',
+      fromVersion: 'unversioned', toVersion: '1.0.0+demo-skills',
+      files: demoTemplateUpgradePlan(ws.id).files.filter((file) => file.path.includes('/skills/')).map((file) => ({ ...file, path: file.path.replace('template-research', 'alice') })),
+      summary: { ready: 1, preserved: 0, conflicts: 1, unchanged: 0 },
+    } })),
+  })),
   http.get('/api/workspaces/:id/alice-harness', ({ params }) => HttpResponse.json({
     appliedVersion: '1.0.0+demo', availableVersion: '1.1.0+demo', runtimeAuthority: 'alice-project',
+    skillDefaults: { alice: true, 'alice-analysis': true, 'alice-uta': true, traderhub: true, 'self-scheduling': true },
     managedSkillNames: ['alice', 'alice-analysis', 'alice-uta', 'traderhub', 'self-scheduling', 'alice-workspace'],
     config: demoHarnessConfigs.get(String(params.id)) ?? { schemaVersion: 1, cli: {} },
     commands: demoHarnessCommands,

@@ -86,6 +86,7 @@ export function UrlAdopter() {
         <Route path="/connectors" element={<AdoptStatic spec={{ kind: 'connectors', params: {} }} />} />
 
         {/* Settings — one entry per category */}
+        <Route path="/settings/workspace-injection" element={<AdoptStatic spec={{ kind: 'settings', params: { category: 'workspace-injection' } }} />} />
         <Route path="/settings" element={<AdoptStatic spec={{ kind: 'settings', params: { category: 'general' } }} />} />
         <Route path="/settings/appearance" element={<AdoptStatic spec={{ kind: 'settings', params: { category: 'appearance' } }} />} />
         <Route path="/settings/activity-bar" element={<AdoptStatic spec={{ kind: 'settings', params: { category: 'activity-bar' } }} />} />

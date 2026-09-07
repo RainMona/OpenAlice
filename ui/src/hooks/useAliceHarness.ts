@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { fetchJson } from '../api/client'
 export interface AliceHarnessConfig {
+  skills?: Record<string, boolean>
   schemaVersion: 1
   cli: Record<string, { enabled?: boolean; groups?: Record<string, boolean> }>
 }
 export interface AliceHarnessStatus {
   managedSkillNames: string[]
+  skillDefaults: Record<string, boolean>
   appliedVersion: string | null
   availableVersion: string
   config: AliceHarnessConfig

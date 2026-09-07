@@ -3,35 +3,32 @@ import { useTranslation } from 'react-i18next'
 import { useAliceHarness, type AliceHarnessConfig } from '../../hooks/useAliceHarness'
 import { Button } from '../ui/button'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../ui/dialog'
-import { WorkspaceTemplateUpgradePanel } from '../workspace/WorkspaceTemplateUpgradePanel'
+import { useWorkspace } from '../../tabs/store'
 
-export function AliceHarnessPanel({ wsId, onChange }: { wsId: string; onChange(): void }) {
+export function AliceHarnessPanel({ wsId, onChange, inProject = false }: { wsId: string; onChange(): void; inProject?: boolean }) {
   const { t } = useTranslation()
   const state = useAliceHarness(wsId)
   const [open, setOpen] = useState(false)
-  const [review, setReview] = useState(false)
+  const openOrFocus = useWorkspace((s) => s.openOrFocus)
   const [draft, setDraft] = useState<AliceHarnessConfig | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   useEffect(() => { setDraft(state.data?.config ?? null) }, [state.data])
   return <>
     <div className="flex flex-wrap items-center gap-3 border-b border-border py-3 text-xs">
-      <strong>Alice Harness</strong>
+      <strong>{t('distribution.skillsVersion')}</strong>
       <span className="min-w-0 flex-1 break-all text-muted-foreground">{state.error ?? (state.data ? state.data.appliedVersion ?? t('aliceHarness.unversioned') : t('common.loading'))}</span>
-      <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>{t('aliceHarness.manage')}</Button>
+      <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>{t('distribution.preferences')}</Button>
+      {!inProject && <Button variant="ghost" size="sm" onClick={() => openOrFocus({ kind: 'settings', params: { category: 'workspace-injection' } })}>{t('distribution.manage')}</Button>}
     </div>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-h-[85vh] overflow-auto sm:max-w-3xl" closeLabel={t('common.close')}>
-        <DialogTitle>Alice Harness</DialogTitle>
-        <DialogDescription>{t('aliceHarness.description')}</DialogDescription>
+        <DialogTitle>{t('distribution.preferences')}</DialogTitle>
+        <DialogDescription>{t('distribution.preferencesHint')}</DialogDescription>
         {state.error && <Button variant="outline" onClick={state.refresh}>{t('common.retry')}</Button>}
         {(!state.data && !state.error) && <p role="status">{t('common.loading')}</p>}
         {(state.error || error) && <p role="alert">{state.error || error}</p>}
         {state.data && draft && <>
-          <div className="space-y-1 break-all text-xs text-muted-foreground">
-            <p>{t('aliceHarness.applied')}: {state.data.appliedVersion ?? t('aliceHarness.unversioned')}</p>
-            <p>{t('aliceHarness.available')}: {state.data.availableVersion}</p>
-          </div>
           {Object.entries(state.data.commands).map(([binary, groups]) => <fieldset key={binary} className="border-t border-border py-3">
             <legend className="px-1 font-mono text-sm">{binary}</legend>
             <label className="flex items-center gap-2 text-sm">
@@ -45,12 +42,22 @@ export function AliceHarnessPanel({ wsId, onChange }: { wsId: string; onChange()
               </label>)}
             </div>
           </fieldset>)}
-          <p className="text-xs text-muted-foreground">{t('aliceHarness.configHint')}</p>
+          <fieldset className="border-t border-border py-3">
+            <legend className="text-sm font-medium">{t('distribution.keepSkills')}</legend>
+            <p className="mb-3 text-xs text-muted-foreground">{t('distribution.keepHint')}</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {Object.entries(state.data.skillDefaults).map(([skill, fallback]) => <label key={skill} className="flex items-center gap-2 font-mono text-xs">
+                <input type="checkbox" checked={draft.skills?.[skill] ?? fallback} onChange={(event) => setDraft({ ...draft, skills: { ...draft.skills, [skill]: event.target.checked } })} />
+                {skill}
+              </label>)}
+            </div>
+          </fieldset>
+          <p className="text-xs text-muted-foreground">{t('distribution.saveHint')}</p>
           <div className="flex flex-wrap gap-2">
             <Button disabled={saving} onClick={() => { setSaving(true); setError(null); void state.save(draft).then(onChange).catch((err) => setError((err as Error).message)).finally(() => setSaving(false)) }}>{t('common.save')}</Button>
-            <Button variant="outline" onClick={() => setReview((value) => !value)}>{t('aliceHarness.review')}</Button>
+
           </div>
-          {review && <WorkspaceTemplateUpgradePanel wsId={wsId} layer="alice-harness" onWorkspaceChanged={() => { state.refresh(); onChange() }} onClose={() => setReview(false)} />}
+
         </>}
       </DialogContent>
     </Dialog>
