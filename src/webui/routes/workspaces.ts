@@ -1400,11 +1400,23 @@ export function createWorkspaceRoutes(
     }
   });
 
-  app.get('/:id/template-upgrade', async (c) => {
+  app.get('/:id/alice-harness', async (c) => {
+    try { return c.json(await svc.aliceHarnessUpgrades.harnessStatus(c.req.param('id'))); }
+    catch (error) { return c.json({ error: (error as Error).message }, error instanceof TemplateUpgradeError && error.code === 'not_found' ? 404 : 400); }
+  });
+  app.put('/:id/alice-harness/config', async (c) => {
+    try {
+      await svc.aliceHarnessUpgrades.configureHarness(c.req.param('id'), await c.req.json());
+      return c.json({ ok: true });
+    } catch (error) { return c.json({ error: (error as Error).message }, error instanceof TemplateUpgradeError && error.code === 'busy' ? 409 : 400); }
+  });
+
+  for (const [route, manager] of [['template-upgrade', svc.templateUpgrades], ['alice-harness-upgrade', svc.aliceHarnessUpgrades]] as const) {
+  app.get(`/:id/${route}`, async (c) => {
     const id = c.req.param('id');
     if (!validId(id)) return c.json({ error: 'not_found' }, 404);
     try {
-      return c.json({ plan: await svc.templateUpgrades.plan(id) });
+      return c.json({ plan: await manager.plan(id) });
     } catch (err) {
       if (err instanceof TemplateUpgradeError) {
         const status = err.code === 'not_found' ? 404
@@ -1417,7 +1429,7 @@ export function createWorkspaceRoutes(
     }
   });
 
-  app.post('/:id/template-upgrade', async (c) => {
+  app.post(`/:id/${route}`, async (c) => {
     const id = c.req.param('id');
     if (!validId(id)) return c.json({ error: 'not_found' }, 404);
     const body = await safeJson(c);
@@ -1432,7 +1444,7 @@ export function createWorkspaceRoutes(
             entry[1] === 'workspace' || entry[1] === 'template'))
       : undefined;
     try {
-      const result = await svc.templateUpgrades.apply(id, {
+      const result = await manager.apply(id, {
         planDigest: fields['planDigest'],
         ...(resolutions ? { resolutions } : {}),
       });
@@ -1449,6 +1461,8 @@ export function createWorkspaceRoutes(
       return c.json({ error: 'upgrade_apply_failed', message: (err as Error).message }, 500);
     }
   });
+
+  }
 
   app.get('/:id/source-upgrade', async (c) => {
     const id = c.req.param('id');

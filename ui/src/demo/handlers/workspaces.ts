@@ -1,4 +1,5 @@
 import { http, HttpResponse } from 'msw'
+import type { AliceHarnessConfig } from '../../hooks/useAliceHarness'
 import {
   DEMO_AUTO_QUANT_WORKSPACE_ID,
   DEMO_AUTO_PREDICTION_WORKSPACE_ID,
@@ -388,7 +389,7 @@ const demoTemplateUpgradePlan = (workspaceId: string) => ({
       currentTruncated: false, templateTruncated: false,
     },
     {
-      path: '.agents/skills/alice/SKILL.md', status: 'ready', operation: 'update', canUseTemplate: true,
+      path: '.agents/skills/template-research/SKILL.md', status: 'ready', operation: 'update', canUseTemplate: true,
       currentPreview: 'Old collaboration guidance.', templatePreview: 'Current collaboration guidance.',
       currentTruncated: false, templateTruncated: false,
     },
@@ -399,7 +400,7 @@ const demoTemplateUpgradePlan = (workspaceId: string) => ({
       note: 'Changed only in this Workspace; it will stay as-is.',
     },
     {
-      path: '.claude/skills/self-scheduling/SKILL.md', status: 'conflict', operation: 'update', canUseTemplate: true,
+      path: '.claude/skills/template-research/SKILL.md', status: 'conflict', operation: 'update', canUseTemplate: true,
       currentPreview: 'Report scheduled work to the owner with the local checklist.',
       templatePreview: 'Report scheduled work to Inbox with a signed artifact.',
       currentTruncated: false, templateTruncated: false,
@@ -408,6 +409,9 @@ const demoTemplateUpgradePlan = (workspaceId: string) => ({
   ],
   summary: { ready: 2, preserved: 1, conflicts: 1, unchanged: 0 },
 })
+
+const demoHarnessConfigs = new Map<string, AliceHarnessConfig>()
+const demoHarnessCommands = { alice: ['rss', 'market', 'analysis', 'peer', 'inbox', 'issue', 'harness'], traderhub: ['equity', 'economy'], 'alice-uta': ['account', 'order'] }
 
 export const workspacesHandlers = [
   http.get('/api/workspaces/auto-quant/default-workspace', () => {
@@ -658,6 +662,22 @@ export const workspacesHandlers = [
     })
     return HttpResponse.json({ ok: true })
   }),
+  http.get('/api/workspaces/:id/alice-harness', ({ params }) => HttpResponse.json({
+    appliedVersion: '1.0.0+demo', availableVersion: '1.1.0+demo', runtimeAuthority: 'alice-project',
+    config: demoHarnessConfigs.get(String(params.id)) ?? { schemaVersion: 1, cli: {} },
+    commands: demoHarnessCommands,
+  })),
+  http.put('/api/workspaces/:id/alice-harness/config', async ({ params, request }) => {
+    demoHarnessConfigs.set(String(params.id), await request.json() as AliceHarnessConfig)
+    return HttpResponse.json({ ok: true })
+  }),
+  http.get('/api/workspaces/:id/alice-harness-upgrade', ({ params }) => HttpResponse.json({ plan: {
+    ...demoTemplateUpgradePlan(String(params.id)), template: 'alice-harness',
+    fromVersion: '1.0.0+demo', toVersion: '1.1.0+demo',
+    files: demoTemplateUpgradePlan(String(params.id)).files.filter((file) => file.path.includes('/skills/')).map((file) => ({ ...file, path: file.path.replace('template-research', 'alice') })),
+    summary: { ready: 1, preserved: 0, conflicts: 1, unchanged: 0 },
+  } })),
+  http.post('/api/workspaces/:id/alice-harness-upgrade', () => HttpResponse.json({ error: 'demo_read_only', message: 'This recorded preview does not modify Workspace files.' }, { status: 409 })),
   http.get('/api/workspaces/:id/template-upgrade', ({ params }) => {
     const workspace = demoWorkspaces.find((candidate) => candidate.id === String(params.id))
     if (!workspace) return HttpResponse.json({ error: 'not_found' }, { status: 404 })
@@ -999,10 +1019,15 @@ export const workspacesHandlers = [
   http.get('/api/workspaces/:id/git/status', () =>
     HttpResponse.json({ branch: 'main', clean: true, files: [] }),
   ),
-  http.get('/api/workspaces/:id/cli/:export/manifest', ({ params }) => HttpResponse.json({
-    export: params.export, description: 'Demonstration command catalog', groupDescriptions: { help: 'Discover this CLI' },
-    groups: { help: { show: { description: 'Demonstration command. Production uses the live registry.', schema: { type: 'object', properties: { topic: { type: 'string', description: 'Topic to inspect' } }, required: ['topic'] } } } },
-  })),
+  http.get('/api/workspaces/:id/cli/:export/manifest', ({ params }) => {
+    const binary = params.export === 'data' ? 'alice' : params.export === 'traderhub' ? 'traderhub' : 'alice-uta'
+    const policy = demoHarnessConfigs.get(String(params.id))?.cli[binary]
+    const groups = policy?.enabled === false ? [] : demoHarnessCommands[binary].filter((group) => policy?.groups?.[group] !== false)
+    return HttpResponse.json({
+      export: params.export, description: 'Demonstration command catalog',
+      groups: Object.fromEntries(groups.map((group) => [group, { show: { description: 'Demonstration command. Production uses the live registry.', schema: { type: 'object', properties: {} } } }])),
+    })
+  }),
   http.get('/api/workspaces/:id/files', ({ params, request }) => {
     const path = new URL(request.url).searchParams.get('path') ?? ''
     const listing = demoDirectoryListing(String(params.id), path)

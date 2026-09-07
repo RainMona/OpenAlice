@@ -245,6 +245,7 @@ export interface WorkspaceToolContext {
   }
   /** Safe current-Workspace template preview/apply surface. */
   templateUpgrades?: WorkspaceTemplateUpgradeControl
+  aliceHarnessUpgrades?: WorkspaceTemplateUpgradeControl
   /** Rename a product Session in this Workspace. Empty/null clears the nametag. */
   setSessionDisplayName?: (input: {
     readonly resumeId: string

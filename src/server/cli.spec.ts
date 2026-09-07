@@ -2,7 +2,9 @@ import { describe, it, expect, vi } from 'vitest'
 import { Hono } from 'hono'
 import { tool } from 'ai'
 import { z } from 'zod'
-import { resolve } from 'node:path'
+import { resolve, join } from 'node:path'
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { ToolCenter } from '../core/tool-center.js'
 import { WorkspaceToolCenter } from '../core/workspace-tool-center.js'
 import { createThinkingTools } from '../tool/thinking.js'
@@ -498,5 +500,34 @@ describe('Workspace CLI documentation', () => {
     expect((await docs.request('/api/workspaces/missing/cli/data/manifest')).status).toBe(404)
     expect((await docs.request('/api/workspaces/ws1/cli/data/invoke', { method: 'POST' })).status).toBe(404)
     expect((await docs.request('/cli/ws1/data/invoke', { method: 'POST' })).status).toBe(404)
+  })
+})
+
+
+describe('Workspace CLI configuration', () => {
+  it('filters discovery and rejects direct invocation through both canonical and legacy exports', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'alice-cli-policy-'))
+    try {
+      await mkdir(join(dir, '.alice'))
+      const wtc = new WorkspaceToolCenter()
+      const execute = vi.fn(async () => ({ ok: true }))
+      wtc.register({ name: 'workspace_list', build: () => tool({ inputSchema: z.object({}), execute }) })
+      const server = new Hono()
+      registerCliRoutes(server, {
+        toolCenter: new ToolCenter(), workspaceToolCenter: wtc, inboxStore: {} as never, entityStore: {} as never,
+        getWorkspaceService: () => ({ registry: { get: () => ({ id: 'one', tag: 'one', dir }) } }) as never,
+      })
+      await writeFile(join(dir, '.alice/alice-harness-config.json'), JSON.stringify({ schemaVersion: 1, cli: { alice: { groups: { peer: false } } } }))
+      for (const exp of ['data', 'workspace']) {
+        const manifest = await (await server.request(`/cli/one/${exp}/manifest`)).json() as { groups: object }
+        expect(manifest.groups).not.toHaveProperty('peer')
+        const response = await server.request(`/cli/one/${exp}/invoke`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tool: 'workspace_list', args: {} }) })
+        expect(response.status).toBe(403)
+      }
+      expect(execute).not.toHaveBeenCalled()
+      await writeFile(join(dir, '.alice/alice-harness-config.json'), '{broken')
+      expect((await server.request('/cli/one/data/manifest')).status).toBe(503)
+      expect((await server.request('/cli/one/workspace/invoke', { method: 'POST', body: JSON.stringify({ tool: 'workspace_list' }) })).status).toBe(503)
+    } finally { await rm(dir, { recursive: true, force: true }) }
   })
 })

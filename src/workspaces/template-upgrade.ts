@@ -18,6 +18,9 @@ import { gzip, gunzip } from 'node:zlib';
 
 import { exec as gitExec, type IGitStringExecutionOptions } from './git-execution.js';
 
+import { CLI_EXPORTS } from '../server/cli-commands.js';
+import { aliceHarnessSourceVersion, injectAliceHarnessSkills } from './alice-harness-assets.js';
+import { ALICE_HARNESS_VERSION_PATH, ALICE_HARNESS_CONFIG_PATH, parseAliceHarnessConfig, isAliceHarnessSkillPath, readAliceHarnessConfig } from './alice-harness-policy.js';
 import { injectWorkspaceContext } from './context-injector.js';
 import type { Logger } from './logger.js';
 import type { TemplateMeta, TemplateRegistry } from './template-registry.js';
@@ -29,13 +32,18 @@ const gzipAsync = promisify(gzip);
 const gunzipAsync = promisify(gunzip);
 
 const STATE_SCHEMA_VERSION = 1 as const;
-const STATE_REL = '.alice/template-upgrade/state.json';
-const BASELINE_REL = '.alice/template-upgrade/baseline.json.gz';
-const TRANSACTION_DIR_REL = '.alice/template-upgrade/transaction';
-const JOURNAL_REL = `${TRANSACTION_DIR_REL}/journal.json`;
-const BEFORE_REL = `${TRANSACTION_DIR_REL}/before.json.gz`;
-const INCOMING_REL = `${TRANSACTION_DIR_REL}/incoming.json.gz`;
-const EXCLUDE_LINE = '/.alice/template-upgrade/';
+function upgradePaths(aliceHarness = false) {
+  const root = aliceHarness ? '.alice/alice-harness-upgrade' : '.alice/template-upgrade';
+  const transaction = `${root}/transaction`;
+  return {
+    state: aliceHarness ? ALICE_HARNESS_VERSION_PATH : `${root}/state.json`,
+    baseline: `${root}/baseline.json.gz`, transaction,
+    journal: `${transaction}/journal.json`, before: `${transaction}/before.json.gz`, incoming: `${transaction}/incoming.json.gz`,
+    exclude: `/${root}/`,
+  };
+}
+type UpgradePaths = ReturnType<typeof upgradePaths>;
+const TEMPLATE_PATHS = upgradePaths();
 const MAX_PREVIEW_CHARS = 24_000;
 const GIT_TIMEOUT_MS = 15_000;
 const MAX_GIT_BUFFER = 16 * 1024 * 1024;
@@ -148,6 +156,7 @@ export class TemplateUpgradeError extends Error {
 }
 
 export interface TemplateUpgradeManagerOptions {
+  readonly aliceHarness?: boolean;
   readonly registry: WorkspaceRegistry;
   readonly templates: TemplateRegistry;
   readonly workspaceRuntimeActivity?: (workspaceId: string) => WorkspaceRuntimeActivity;
@@ -172,14 +181,16 @@ export interface TemplateUpgradeManagerOptions {
  */
 export class TemplateUpgradeManager {
   private readonly operationGuard: WorkspaceOperationGuard;
+  private readonly paths: UpgradePaths;
 
   constructor(private readonly opts: TemplateUpgradeManagerOptions) {
+    this.paths = upgradePaths(opts.aliceHarness);
     this.operationGuard = opts.operationGuard ?? new WorkspaceOperationGuard();
   }
 
   async recover(): Promise<void> {
     for (const workspace of this.opts.registry.list()) {
-      if (!existsSync(join(workspace.dir, JOURNAL_REL))) continue;
+      if (!existsSync(join(workspace.dir, this.paths.journal))) continue;
       await this.recoverWorkspace(workspace).catch((err) =>
         this.opts.logger.error('template_upgrade.recovery_failed', {
           workspaceId: workspace.id,
@@ -189,10 +200,36 @@ export class TemplateUpgradeManager {
     }
   }
 
+  async harnessStatus(workspaceId: string) {
+    const workspace = this.opts.registry.get(workspaceId);
+    if (!workspace) throw new TemplateUpgradeError('not_found', 'Workspace not found');
+    return {
+      appliedVersion: await this.currentVersion(workspace) ?? null,
+      availableVersion: await aliceHarnessSourceVersion(),
+      runtimeAuthority: 'alice-project' as const,
+      config: await readAliceHarnessConfig(workspace.dir),
+      commands: Object.fromEntries(Object.values(CLI_EXPORTS).filter((exp) => exp.binary !== 'alice-workspace').map((exp) => [exp.binary, Object.keys(exp.commands)])),
+    };
+  }
+
+  async configureHarness(workspaceId: string, value: unknown): Promise<void> {
+    const config = parseAliceHarnessConfig(value);
+    const lease = this.operationGuard.acquire(workspaceId, 'alice-harness-config');
+    if (!lease) throw new TemplateUpgradeError('busy', 'Workspace has another checkout operation');
+    try {
+      const workspace = this.opts.registry.get(workspaceId);
+      if (!workspace) throw new TemplateUpgradeError('not_found', 'Workspace not found');
+      if (this.opts.workspaceRuntimeActivity?.(workspaceId).busy) throw new TemplateUpgradeError('busy', 'Pause Workspace Sessions before changing CLI configuration');
+      const unsafeParent = await parentPathIssue(workspace.dir, ALICE_HARNESS_CONFIG_PATH);
+      if (unsafeParent) throw new Error(`Unsafe config path: ${unsafeParent}`);
+      await atomicWriteJson(join(workspace.dir, ALICE_HARNESS_CONFIG_PATH), config);
+    } finally { lease.release(); }
+  }
+
   async currentVersion(workspace: WorkspaceMeta): Promise<string | undefined> {
-    const state = await readState(workspace.dir);
-    if (state && state.template === workspace.template) return state.appliedVersion;
-    return workspace.spawnedFromVersion;
+    const state = await readState(workspace.dir, this.paths);
+    if (state && state.template === (this.opts.aliceHarness ? 'alice-harness' : workspace.template)) return state.appliedVersion;
+    return this.opts.aliceHarness ? undefined : workspace.spawnedFromVersion;
   }
 
   async plan(workspaceId: string): Promise<TemplateUpgradePlan> {
@@ -200,7 +237,7 @@ export class TemplateUpgradeManager {
     try {
       const workspace = this.opts.registry.get(workspaceId);
       if (!workspace) throw new TemplateUpgradeError('not_found', 'Workspace not found');
-      const template = resolveUpgradeableTemplate(workspace, this.opts.templates);
+      const template = await this.resolveTemplate(workspace);
       await this.recoverWorkspace(workspace);
       const incoming = await this.materializeTemplate(template, workspace.id);
       return this.buildPlan(workspace, template, incoming);
@@ -234,7 +271,7 @@ export class TemplateUpgradeManager {
   ): Promise<TemplateUpgradeResult> {
     const workspace = this.opts.registry.get(workspaceId);
     if (!workspace) throw new TemplateUpgradeError('not_found', 'Workspace not found');
-    const template = resolveUpgradeableTemplate(workspace, this.opts.templates);
+    const template = await this.resolveTemplate(workspace);
     await this.recoverWorkspace(workspace);
 
     // Materialize once: the exact Incoming snapshot included in the reviewed
@@ -253,7 +290,7 @@ export class TemplateUpgradeManager {
         plan,
       );
     }
-    if (plan.fromVersion === plan.toVersion) {
+    if (plan.fromVersion === plan.toVersion && (!this.opts.aliceHarness || !plan.files.some((file) => file.status === 'ready' || file.status === 'conflict'))) {
       throw new TemplateUpgradeError('already_current', 'Workspace is already on this template version', plan);
     }
 
@@ -305,16 +342,16 @@ export class TemplateUpgradeManager {
       preparedAt: new Date().toISOString(),
     };
 
-    await ensureStateExcluded(workspace.dir);
-    await writeCompressedJson(join(workspace.dir, BEFORE_REL), {
+    await ensureStateExcluded(workspace.dir, this.paths);
+    await writeCompressedJson(join(workspace.dir, this.paths.before), {
       schemaVersion: STATE_SCHEMA_VERSION,
       files: before,
     } satisfies StoredBaseline);
-    await writeCompressedJson(join(workspace.dir, INCOMING_REL), {
+    await writeCompressedJson(join(workspace.dir, this.paths.incoming), {
       schemaVersion: STATE_SCHEMA_VERSION,
       files: incoming,
     } satisfies StoredBaseline);
-    await atomicWriteJson(join(workspace.dir, JOURNAL_REL), journal);
+    await atomicWriteJson(join(workspace.dir, this.paths.journal), journal);
 
     try {
       for (const path of changedPaths) {
@@ -334,8 +371,8 @@ export class TemplateUpgradeManager {
         'commit', '--allow-empty', '-q', '-m', message,
       ]);
       const commit = (await runGit(workspace.dir, ['rev-parse', 'HEAD'])).trim();
-      await persistAppliedState(workspace.dir, template, incoming, 'upgrade', commit);
-      await rm(join(workspace.dir, TRANSACTION_DIR_REL), { recursive: true, force: true });
+      await persistAppliedState(workspace.dir, template, incoming, 'upgrade', commit, this.paths);
+      await rm(join(workspace.dir, this.paths.transaction), { recursive: true, force: true });
       this.opts.logger.info('template_upgrade.applied', {
         workspaceId: workspace.id,
         fromVersion: plan.fromVersion,
@@ -368,8 +405,8 @@ export class TemplateUpgradeManager {
     template: TemplateMeta,
     incoming: Snapshot,
   ): Promise<TemplateUpgradePlan> {
-    const state = await readState(workspace.dir);
-    const stored = state?.template === template.name ? await readBaseline(workspace.dir) : null;
+    const state = await readState(workspace.dir, this.paths);
+    const stored = state?.template === template.name ? await readBaseline(workspace.dir, this.paths) : null;
     const baseline = stored?.files ?? await readLegacyRootBaseline(workspace.dir);
     const source: TemplateUpgradePlan['source'] = stored
       ? 'recorded-baseline'
@@ -383,7 +420,7 @@ export class TemplateUpgradeManager {
       ...Object.keys(localSnapshot),
       ...Object.keys(incoming),
     ])]
-      .filter(isManagedTemplatePath)
+      .filter((path) => isManagedTemplatePath(path) && (this.opts.aliceHarness ? (isAliceHarnessSkillPath(path) || path === ALICE_HARNESS_CONFIG_PATH) : (!isAliceHarnessSkillPath(path) && path !== ALICE_HARNESS_CONFIG_PATH)))
       .sort();
     const localEntries = await Promise.all(paths.map((path) => readLocalFile(workspace.dir, path)));
     const files = paths.map((path, index) => classifyFile(
@@ -402,13 +439,14 @@ export class TemplateUpgradeManager {
     if ((await stagedPaths(workspace.dir)).length > 0) blockers.push('staged_changes');
     const fromVersion = state?.template === template.name
       ? state.appliedVersion
-      : workspace.spawnedFromVersion ?? 'unknown';
+      : this.opts.aliceHarness ? 'unversioned' : workspace.spawnedFromVersion ?? 'unknown';
     const planDigest = digestPlan({
       workspaceId: workspace.id,
       template: template.name,
       fromVersion,
       toVersion: template.version,
       baseline,
+      ...(this.opts.aliceHarness ? { config: await readAliceHarnessConfig(workspace.dir) } : {}),
       incoming,
       local: Object.fromEntries(paths.map((path, index) => [path, localEntries[index] ?? missingFile()])),
     });
@@ -433,33 +471,54 @@ export class TemplateUpgradeManager {
     };
   }
 
-  private materializeTemplate(template: TemplateMeta, workspaceId: string): Promise<Snapshot> {
-    return this.opts.materializeTemplate
-      ? this.opts.materializeTemplate(template, workspaceId)
-      : materializeTemplateSnapshot(template, workspaceId);
+  private async resolveTemplate(workspace: WorkspaceMeta): Promise<TemplateMeta> {
+    if (!this.opts.aliceHarness) return resolveUpgradeableTemplate(workspace, this.opts.templates);
+    const template = workspace.template ? this.opts.templates.get(workspace.template) : undefined;
+    if (!template) throw new TemplateUpgradeError('unsupported', 'Workspace template is unavailable');
+    return { ...template, name: 'alice-harness', version: await aliceHarnessSourceVersion(), upgradeStrategy: 'managed-context' };
+  }
+
+  private async materializeTemplate(template: TemplateMeta, workspaceId: string): Promise<Snapshot> {
+    if (this.opts.materializeTemplate) return this.opts.materializeTemplate(template, workspaceId);
+    if (!this.opts.aliceHarness) return materializeTemplateSnapshot(template, workspaceId);
+    const workspace = this.opts.registry.get(workspaceId)!;
+    const config = await readAliceHarnessConfig(workspace.dir);
+    const dir = await mkdtemp(join(tmpdir(), 'alice-harness-'));
+    try {
+      await injectAliceHarnessSkills(dir, template.injectTools, config);
+      const snapshot = { ...await readManagedWorkspaceSnapshot(dir) };
+      // Adopt legacy Workspaces through the same reviewed, recoverable transaction.
+      // Existing policy bytes are Workspace-owned and are never regenerated.
+      const existingConfig = await readLocalFile(workspace.dir, ALICE_HARNESS_CONFIG_PATH);
+      if (existingConfig.kind === 'missing') {
+        await atomicWriteJson(join(dir, ALICE_HARNESS_CONFIG_PATH), config);
+        snapshot[ALICE_HARNESS_CONFIG_PATH] = await readLocalFile(dir, ALICE_HARNESS_CONFIG_PATH);
+      } else snapshot[ALICE_HARNESS_CONFIG_PATH] = existingConfig;
+      return snapshot;
+    } finally { await rm(dir, { recursive: true, force: true }); }
   }
 
   private async recoverWorkspace(workspace: WorkspaceMeta): Promise<void> {
-    const journal = await readJson<UpgradeJournal>(join(workspace.dir, JOURNAL_REL));
+    const journal = await readJson<UpgradeJournal>(join(workspace.dir, this.paths.journal));
     if (!journal) return;
-    const incoming = await readCompressedJson<StoredBaseline>(join(workspace.dir, INCOMING_REL));
+    const incoming = await readCompressedJson<StoredBaseline>(join(workspace.dir, this.paths.incoming));
     const headMessage = await runGit(workspace.dir, ['log', '-1', '--pretty=%B']).catch(() => '');
     if (headMessage.includes(`OpenAlice-Template-Upgrade: ${journal.planDigest}`) && incoming) {
-      const template = this.opts.templates.get(journal.template);
+      const template = this.opts.aliceHarness ? await this.resolveTemplate(workspace) : this.opts.templates.get(journal.template);
       if (!template) throw new Error(`cannot recover missing template: ${journal.template}`);
       const commit = (await runGit(workspace.dir, ['rev-parse', 'HEAD'])).trim();
       await persistAppliedState(workspace.dir, {
         ...template,
         version: journal.toVersion,
-      }, incoming.files, 'upgrade', commit);
-      await rm(join(workspace.dir, TRANSACTION_DIR_REL), { recursive: true, force: true });
+      }, incoming.files, 'upgrade', commit, this.paths);
+      await rm(join(workspace.dir, this.paths.transaction), { recursive: true, force: true });
       this.opts.logger.info('template_upgrade.recovered_committed', {
         workspaceId: workspace.id,
         commit,
       });
       return;
     }
-    const before = await readCompressedJson<StoredBaseline>(join(workspace.dir, BEFORE_REL));
+    const before = await readCompressedJson<StoredBaseline>(join(workspace.dir, this.paths.before));
     if (!before) throw new Error('template upgrade recovery snapshot is missing');
     for (const path of journal.touchedPaths) {
       await writeSnapshotFile(workspace.dir, path, before.files[path] ?? missingFile());
@@ -467,7 +526,7 @@ export class TemplateUpgradeManager {
     if (journal.touchedPaths.length > 0) {
       await runGit(workspace.dir, ['reset', '-q', '--', ...journal.touchedPaths]).catch(() => '');
     }
-    await rm(join(workspace.dir, TRANSACTION_DIR_REL), { recursive: true, force: true });
+    await rm(join(workspace.dir, this.paths.transaction), { recursive: true, force: true });
     this.opts.logger.warn('template_upgrade.recovered_rollback', {
       workspaceId: workspace.id,
       preparedAt: journal.preparedAt,
@@ -480,10 +539,12 @@ export async function initializeWorkspaceTemplateState(
   workspace: WorkspaceMeta,
   template: TemplateMeta,
 ): Promise<void> {
-  if (template.upgradeStrategy !== 'managed-context') return;
   const snapshot = await readManagedWorkspaceSnapshot(workspace.dir);
+  const injected = Object.fromEntries(Object.entries(snapshot).filter(([path]) => isAliceHarnessSkillPath(path)));
+  await persistAppliedState(workspace.dir, { ...template, name: 'alice-harness', version: await aliceHarnessSourceVersion() }, injected, 'creation', undefined, upgradePaths(true));
+  if (template.upgradeStrategy !== 'managed-context') return;
   await ensureStateExcluded(workspace.dir);
-  await persistAppliedState(workspace.dir, template, snapshot, 'creation');
+  await persistAppliedState(workspace.dir, template, Object.fromEntries(Object.entries(snapshot).filter(([path]) => !isAliceHarnessSkillPath(path))), 'creation');
 }
 
 export function isManagedTemplatePath(path: string): boolean {
@@ -493,7 +554,7 @@ export function isManagedTemplatePath(path: string): boolean {
     || normalized.includes('\0')
     || normalized.split('/').some((part) => part === '' || part === '.' || part === '..')
   ) return false;
-  return MANAGED_ROOT_FILES.some((candidate) => normalized === candidate)
+  return normalized === ALICE_HARNESS_CONFIG_PATH || MANAGED_ROOT_FILES.some((candidate) => normalized === candidate)
     || normalized.startsWith('.agents/skills/')
     || normalized.startsWith('.claude/skills/')
     // Old Pi injection duplicated the shared skill tree. Treat it as legacy
@@ -648,7 +709,7 @@ async function materializeTemplateSnapshot(
       await mkdir(dir, { recursive: true });
       await writeFile(join(dir, 'README.md'), await readFile(template.readmePath, 'utf8'), 'utf8');
     }
-    await injectWorkspaceContext({ template, wsId: workspaceId, dir });
+    await injectWorkspaceContext({ template, wsId: workspaceId, dir, templateOnly: true });
     // Await inside the try. Returning the unresolved Promise would enter the
     // finally block first and delete the materialization while its recursive
     // reader is still walking — producing nondeterministic partial snapshots.
@@ -767,7 +828,7 @@ async function stagedPaths(workspaceDir: string): Promise<string[]> {
   return output.split(/\r?\n/).filter(Boolean);
 }
 
-async function ensureStateExcluded(workspaceDir: string): Promise<void> {
+async function ensureStateExcluded(workspaceDir: string, paths = TEMPLATE_PATHS): Promise<void> {
   const path = join(workspaceDir, '.git', 'info', 'exclude');
   await mkdir(dirname(path), { recursive: true });
   let current = '';
@@ -776,9 +837,11 @@ async function ensureStateExcluded(workspaceDir: string): Promise<void> {
   } catch (err) {
     if (!isENOENT(err)) throw err;
   }
-  if (current.split(/\r?\n/).includes(EXCLUDE_LINE)) return;
+  const excludes = [paths.exclude, ...(paths.state === ALICE_HARNESS_VERSION_PATH ? [`/${ALICE_HARNESS_VERSION_PATH}`] : [])];
+  const missing = excludes.filter((line) => !current.split(/\r?\n/).includes(line));
+  if (!missing.length) return;
   const separator = current.length === 0 || current.endsWith('\n') ? '' : '\n';
-  await writeFile(path, `${current}${separator}${EXCLUDE_LINE}\n`, 'utf8');
+  await writeFile(path, `${current}${separator}${missing.join('\n')}\n`, 'utf8');
 }
 
 async function persistAppliedState(
@@ -787,13 +850,14 @@ async function persistAppliedState(
   baseline: Snapshot,
   source: TemplateUpgradeState['source'],
   commit?: string,
+  paths = TEMPLATE_PATHS,
 ): Promise<void> {
-  await ensureStateExcluded(workspaceDir);
-  await writeCompressedJson(join(workspaceDir, BASELINE_REL), {
+  await ensureStateExcluded(workspaceDir, paths);
+  await writeCompressedJson(join(workspaceDir, paths.baseline), {
     schemaVersion: STATE_SCHEMA_VERSION,
     files: baseline,
   } satisfies StoredBaseline);
-  await atomicWriteJson(join(workspaceDir, STATE_REL), {
+  await atomicWriteJson(join(workspaceDir, paths.state), {
     schemaVersion: STATE_SCHEMA_VERSION,
     template: template.name,
     appliedVersion: template.version,
@@ -803,15 +867,15 @@ async function persistAppliedState(
   } satisfies TemplateUpgradeState);
 }
 
-async function readState(workspaceDir: string): Promise<TemplateUpgradeState | null> {
-  const parsed = await readJson<TemplateUpgradeState>(join(workspaceDir, STATE_REL));
+async function readState(workspaceDir: string, paths = TEMPLATE_PATHS): Promise<TemplateUpgradeState | null> {
+  const parsed = await readJson<TemplateUpgradeState>(join(workspaceDir, paths.state));
   if (!parsed || parsed.schemaVersion !== STATE_SCHEMA_VERSION) return null;
   if (typeof parsed.template !== 'string' || typeof parsed.appliedVersion !== 'string') return null;
   return parsed;
 }
 
-async function readBaseline(workspaceDir: string): Promise<StoredBaseline | null> {
-  const parsed = await readCompressedJson<StoredBaseline>(join(workspaceDir, BASELINE_REL));
+async function readBaseline(workspaceDir: string, paths = TEMPLATE_PATHS): Promise<StoredBaseline | null> {
+  const parsed = await readCompressedJson<StoredBaseline>(join(workspaceDir, paths.baseline));
   return parsed?.schemaVersion === STATE_SCHEMA_VERSION ? parsed : null;
 }
 

@@ -419,6 +419,7 @@ export interface WorkspaceService {
   readonly catalog: WorkspaceCatalog;
   readonly lifecycle: WorkspaceLifecycleManager;
   readonly templateUpgrades: TemplateUpgradeManager;
+  readonly aliceHarnessUpgrades: TemplateUpgradeManager;
   readonly sourceUpgrades: HarnessSourceUpgradeManager;
   readonly workspaceAbsorbs: WorkspaceAbsorbManager;
   /** Coordinates runtime starts with directory-wide lifecycle operations. */
@@ -3040,6 +3041,13 @@ export async function createWorkspaceService(opts: CreateWorkspaceServiceOptions
     logger: launcherLogger.child({ scope: 'template-upgrade' }),
   });
   await templateUpgrades.recover();
+  const aliceHarnessUpgrades = new TemplateUpgradeManager({
+    aliceHarness: true, registry, templates,
+    workspaceRuntimeActivity: workspaceRuntimeActivityMethod,
+    operationGuard: workspaceOperationGuard,
+    logger: launcherLogger.child({ scope: 'alice-harness-upgrade' }),
+  });
+  await aliceHarnessUpgrades.recover();
   const sourceUpgrades = new HarnessSourceUpgradeManager({
     registry,
     templates,
@@ -3266,6 +3274,7 @@ export async function createWorkspaceService(opts: CreateWorkspaceServiceOptions
     catalog,
     lifecycle,
     templateUpgrades,
+    aliceHarnessUpgrades,
     sourceUpgrades,
     workspaceAbsorbs,
     operationGuard: workspaceOperationGuard,

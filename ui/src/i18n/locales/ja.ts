@@ -2,6 +2,17 @@ import type { Resources } from './en'
 
 /** 日本語. Typed as `Resources` → must match en's key structure exactly. */
 export const ja: Resources = {
+  aliceHarness: {
+    "unversioned": "未記録",
+    "manage": "管理",
+    "description": "CLI と付属 Skills は Alice Project が提供し、Chat、AutoQuant、Auto Prediction とは独立して更新できます。コマンドは現在の Project ランタイムで実行され、記録された版は古い実行ファイルを固定しません。",
+    "applied": "注入済みバージョン",
+    "available": "Project の提供バージョン",
+    "enabled": "CLI を有効化",
+    "configHint": "コマンド設定を保存してからスキル更新を確認してください。保存・更新前に実行中のセッションを停止します。ローカル変更は比較され、自動で上書きされません。",
+    "review": "注入更新を確認"
+},
+
   mirrors: {
     "canonical": "正本",
     "mirror-only": "ミラーのみ",

@@ -25,7 +25,8 @@ that a whole repository is a launcher-managed file set.
 The current managed set is intentionally narrow:
 
 - `README.md`, `AGENTS.md`, and `CLAUDE.md`;
-- `.agents/skills/**` and `.claude/skills/**`;
+- Template-owned `.agents/skills/**` and `.claude/skills/**`; Alice Harness CLI
+  companion skills are excluded and independently upgraded via [[docs/alice-harness.md]].
 - legacy `.pi/skills/**`, so an unchanged duplicate skill tree can be removed.
 
 Research, reports, Issues, Inbox records, credentials, Git history, runtime
