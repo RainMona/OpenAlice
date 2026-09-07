@@ -23,7 +23,7 @@ import type { TemplateMeta } from './template-registry.js';
  * workspaces at all (no `.mcp.json`, no Pi bridge); these skills are how the
  * agent learns the CLI surface that is now its ONLY path to OpenAlice's tools.
  */
-const CLI_TOOLS_SKILLS = ['alice', 'alice-analysis', 'alice-uta', 'alice-workspace', 'traderhub'];
+const CLI_TOOLS_SKILLS = ['alice', 'alice-analysis', 'alice-uta', 'traderhub'];
 
 /**
  * Skills injected into EVERY new workspace, regardless of template — generic
@@ -54,7 +54,7 @@ export async function injectWorkspaceContext(opts: {
 
   // Every workspace gets ALWAYS_SKILLS (generic launcher capabilities). Tool-
   // bearing templates additionally get the per-CLI playbooks (alice / alice-uta
-  // / alice-workspace / traderhub) so the agent knows the CLI surface — its ONLY
+  // / traderhub) so the agent knows the CLI surface — its ONLY
   // path to OpenAlice tools, since the launcher injects no MCP. All de-duped.
   const skills = [
     ...new Set([

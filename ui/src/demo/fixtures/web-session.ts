@@ -101,7 +101,7 @@ const aaplResearchMessages: readonly WebConversationMessage[] = [
         id: 'aapl-inbox',
         name: 'bash',
         arguments: {
-          command: 'alice-workspace inbox push --doc research/AAPL-q1-hidden-deceleration.md',
+          command: 'alice inbox push --doc research/AAPL-q1-hidden-deceleration.md',
         },
       },
     ],

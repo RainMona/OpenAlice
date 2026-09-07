@@ -571,11 +571,11 @@ contract:
    the production-composed Workspace environment. It resolves `alice`,
    `alice-workspace`, `traderhub`, and `alice-uta`, loads every CLI manifest over
    the Electron tool socket, verifies Git, and creates then reads an issue with
-   the real `alice-workspace` shim.
+   the real `alice` shim (with `alice-workspace` retained as a compatibility alias).
 2. The shell creates a one-shot scheduled Issue containing metacharacters in
    its visible What. The real `ScheduleScanner` dispatches the packaged managed
    Pi runtime, which performs a deterministic `bash` tool call that invokes
-   `alice-workspace issue create`. The smoke accepts the run only when it is
+   `alice issue create`. The smoke accepts the run only when it is
    process-backed, structured assistant output is decoded, the one-shot Issue
    auto-completes, and the created side-effect Issue is visible from the
    external `/api/issues` surface.

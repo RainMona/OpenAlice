@@ -1,14 +1,4 @@
----
-name: alice-workspace
-description: >
-  Use the `alice-workspace` CLI for collaboration between durable OpenAlice
-  Workspaces: find peers, send ordinary Agent messages, deliver reports to the
-  human Inbox, coordinate Issues, and trace artifacts to attributable product
-  Sessions. Load it when work must cross a Workspace boundary or remain
-  recoverable. Read live help instead of guessing flags.
----
-
-# Workspace collaboration — `alice-workspace`
+# Workspace collaboration — `alice`
 
 OpenAlice owns addresses, delivery, durable work, and provenance. Coding Agents
 keep using their native file, search, and Git tools inside any resolved path.
@@ -30,9 +20,9 @@ keep using their native file, search, and Git tools inside any resolved path.
 Start with live intent help whenever the route is unclear:
 
 ```bash
-alice-workspace
-alice-workspace <group>
-alice-workspace <group> <verb> --help
+alice
+alice <group>
+alice <group> <verb> --help
 ```
 
 ## Talk to another Agent
@@ -41,22 +31,22 @@ Use `conversation`, not Inbox, for ordinary coworker communication.
 
 ```bash
 # Discover the active office floor and choose a desk.
-alice-workspace peer list
+alice peer list
 
 # Recruit a fresh Session at that Workspace for new work.
-alice-workspace conversation ask --ws-id <workspaceId> \
+alice conversation ask --ws-id <workspaceId> \
   --prompt 'Investigate this bounded question and report back.'
 
 # Continue one exact attributable product Session.
-alice-workspace conversation ask --resume-id <resumeId> \
+alice conversation ask --resume-id <resumeId> \
   --prompt 'Explain the missing context.' --await
 
 # Ask the attributable sender of one Inbox delivery.
-alice-workspace conversation ask --inbox-id <entryId> \
+alice conversation ask --inbox-id <entryId> \
   --prompt 'What did you send, and what should I inspect first?' --await
 
 # Recruit a fresh Session in a Harness default Workspace.
-alice-workspace conversation ask --harness autoquant \
+alice conversation ask --harness autoquant \
   --prompt 'Start a new quantitative research assignment.'
 ```
 
@@ -78,9 +68,9 @@ Choose the waiting rhythm from the work:
 - Several independent peers: dispatch first, then collect the task ids together.
 
 ```bash
-alice-workspace conversation await --task-id <taskId>
-alice-workspace conversation read --task-id <taskId>
-alice-workspace conversation collect --task-id <taskA> --task-id <taskB>
+alice conversation await --task-id <taskId>
+alice conversation read --task-id <taskId>
+alice conversation collect --task-id <taskA> --task-id <taskB>
 ```
 
 Conversation work has no implicit execution deadline. `--await`, `conversation
@@ -101,7 +91,7 @@ already reaches the user; scheduled/headless work must push explicitly when its
 result deserves human attention.
 
 ```bash
-alice-workspace inbox push \
+alice inbox push \
   --doc research/report.md \
   --comments 'Finished — the report contains the evidence and conclusion.'
 ```
@@ -113,8 +103,8 @@ recover what was sent even if the path later changes.
 Read recent deliveries with:
 
 ```bash
-alice-workspace inbox read --limit 5
-alice-workspace inbox read --self
+alice inbox read --limit 5
+alice inbox read --self
 ```
 
 Each attachment is returned in `files[]` with a directly usable `absolutePath`,
@@ -126,7 +116,7 @@ path is unsafe, do not guess it. For broader inspection of an available peer
 desk, resolve its root explicitly:
 
 ```bash
-alice-workspace peer path --id <workspaceId>
+alice peer path --id <workspaceId>
 # Then use the Coding Agent's native Read/Search/Glob/Git capabilities.
 ```
 
@@ -145,14 +135,14 @@ only delivers the exact committed files and stamps their origin.
 Prefer the business object when one already identifies the responsible work:
 
 ```bash
-alice-workspace inbox ask --id <entryId> \
+alice inbox ask --id <entryId> \
   --prompt 'Why did you send this result?' --await
 
-alice-workspace issue ask --id <issueName> --creator \
+alice issue ask --id <issueName> --creator \
   --prompt 'Why was this Issue created?' --await
-alice-workspace issue ask --id <issueName> --owner \
+alice issue ask --id <issueName> --owner \
   --prompt 'What is the current state and next decision?' --await
-alice-workspace issue ask --id <issueName> --run-id <taskId> \
+alice issue ask --id <issueName> --run-id <taskId> \
   --prompt 'What happened in this execution?' --await
 ```
 
@@ -168,13 +158,13 @@ Resolution means:
 ## Trace provenance
 
 ```bash
-alice-workspace provenance show --kind inbox --inbox-entry-id <entryId>
-alice-workspace provenance show --kind issue --issue-id <id>
-alice-workspace provenance show --kind report --workspace-id <workspaceId> \
+alice provenance show --kind inbox --inbox-entry-id <entryId>
+alice provenance show --kind issue --issue-id <id>
+alice provenance show --kind report --workspace-id <workspaceId> \
   --path research/report.md --revision <sha256:...>
-alice-workspace provenance show --resume-id <resumeId>
-alice-workspace signature show
-alice-workspace session rename --resume-id <resumeId> --display-name 'AAPL desk'
+alice provenance show --resume-id <resumeId>
+alice signature show
+alice session rename --resume-id <resumeId> --display-name 'AAPL desk'
 ```
 
 `resumeId` is the product follow-up handle; `taskId` is one execution. Native
@@ -186,12 +176,12 @@ delivery, which may differ from whoever last edited its live document.
 Issue reads span the shared board; writes belong to this Workspace:
 
 ```bash
-alice-workspace issue list
-alice-workspace issue list --mode detailed
-alice-workspace issue show --id <name>
-alice-workspace issue create --title 'Investigate the anomaly'
-alice-workspace issue update --id <id> --status in_progress
-alice-workspace issue comment --id <id> --text 'Evidence collected; review next.'
+alice issue list
+alice issue list --mode detailed
+alice issue show --id <name>
+alice issue create --title 'Investigate the anomaly'
+alice issue update --id <id> --status in_progress
+alice issue comment --id <id> --text 'Evidence collected; review next.'
 ```
 
 Use `issue comment` for durable discussion on this Workspace's Issue. Use
@@ -202,8 +192,8 @@ Scheduling and the complete Issue file/assignee contract belong to the
 Tracked entities are the durable cross-Workspace subject index, not tasks:
 
 ```bash
-alice-workspace track search --query uranium
-alice-workspace track add --name uranium-ccj --description 'Cameco — uranium miner'
+alice track search --query uranium
+alice track add --name uranium-ccj --description 'Cameco — uranium miner'
 ```
 
 ## Upgrade managed Workspace guidance
@@ -211,10 +201,10 @@ alice-workspace track add --name uranium-ccj --description 'Cameco — uranium m
 Preview first; apply only after reviewing the plan:
 
 ```bash
-alice-workspace template upgrade
-alice-workspace template upgrade --mode detailed
-alice-workspace template upgrade --apply
-alice-workspace template upgrade --id <workspaceId>
+alice template upgrade
+alice template upgrade --mode detailed
+alice template upgrade --apply
+alice template upgrade --id <workspaceId>
 ```
 
 Applying to a live current Workspace is blocked. A headless run may preview a

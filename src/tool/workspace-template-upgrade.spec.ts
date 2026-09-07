@@ -70,7 +70,7 @@ describe('workspace_template_upgrade', () => {
         status: 'ready',
         fromVersion: '1.5.0',
         toVersion: '1.6.1',
-        nextCommand: 'alice-workspace template upgrade --apply',
+        nextCommand: 'alice template upgrade --apply',
       },
     })
     expect(result.preview.changes[0]).not.toHaveProperty('currentPreview')

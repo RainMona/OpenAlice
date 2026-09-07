@@ -132,9 +132,9 @@ describe('CLI gateway — data export', () => {
 })
 
 describe('CLI gateway — export scope isolation', () => {
-  it('the data export cannot reach a collaboration tool (inbox_push)', async () => {
+  it('unified alice reports an unavailable scoped tool instead of using a global fallback', async () => {
     const res = await post('/cli/ws1/data/invoke', { tool: 'inbox_push', args: {} })
-    expect(res.status).toBe(404) // not in the data map → gated out
+    expect(res.status).toBe(404) // mapped, but not registered in this fixture
   })
 
   it('the workspace export cannot reach a data tool (marketSearchForResearch)', async () => {
@@ -257,7 +257,7 @@ describe('CLI gateway — inbox read (scoped, string-arg coercion)', () => {
   }
 
   const invoke = async (app: Hono, args: Record<string, string>) => {
-    const res = await app.request('/cli/ws1/workspace/invoke', {
+    const res = await app.request('/cli/ws1/data/invoke', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tool: 'inbox_read', args }),
@@ -322,9 +322,11 @@ describe('CLI gateway — agent-invisible origin (x-openalice-run → registry)'
     }
     const wtc = new WorkspaceToolCenter()
     wtc.register(inboxPushFactory)
+    const globals = new ToolCenter()
+    globals.register({ inbox_push: tool({ inputSchema: z.object({ comments: z.string() }), execute: (): string => { throw new Error('Global shadow must never run') } }) }, 'shadow')
     const app = new Hono()
     registerCliRoutes(app, {
-      toolCenter: new ToolCenter(),
+      toolCenter: globals,
       workspaceToolCenter: wtc,
       inboxStore,
       entityStore: {} as never,
@@ -333,16 +335,16 @@ describe('CLI gateway — agent-invisible origin (x-openalice-run → registry)'
     return { app, inboxStore }
   }
 
-  const pushWith = (app: Hono, headers: Record<string, string>) =>
-    app.request('/cli/ws1/workspace/invoke', {
+  const pushWith = (app: Hono, headers: Record<string, string>, exportKey = 'data') =>
+    app.request(`/cli/ws1/${exportKey}/invoke`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...headers },
       body: JSON.stringify({ tool: 'inbox_push', args: { comments: 'report' } }),
     })
 
-  it('stamps origin from the registry record when the run header is present', async () => {
+  it.each(['data', 'workspace'])('stamps registry origin through the %s export', async (exportKey) => {
     const { app, inboxStore } = makeOriginApp()
-    const res = await pushWith(app, { 'x-openalice-run': 'run-7' })
+    const res = await pushWith(app, { 'x-openalice-run': 'run-7' }, exportKey)
     expect(res.status).toBe(200)
     const { entries } = await inboxStore.read({ workspaceId: 'ws1' })
     expect(entries[0].origin).toEqual({
@@ -446,7 +448,7 @@ describe('CLI gateway — peer path (cross-workspace resolution)', () => {
   }
 
   const invoke = async (app: Hono, args: Record<string, string>) => {
-    const res = await app.request('/cli/ws1/workspace/invoke', {
+    const res = await app.request('/cli/ws1/data/invoke', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tool: 'workspace_path', args }),

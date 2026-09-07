@@ -10,7 +10,6 @@ import { fetchJson } from '../api/client'
 export const cliExports = [
   { key: 'data', name: 'alice' },
   { key: 'traderhub', name: 'traderhub' },
-  { key: 'workspace', name: 'alice-workspace' },
   { key: 'uta', name: 'alice-uta' },
 ] as const
 export interface CliManifest {
