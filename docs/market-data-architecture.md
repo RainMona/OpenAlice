@@ -35,7 +35,7 @@ low-frequency/reference research
   -> typed local fallback when supported
 
 K-lines and quantitative work
-  -> alice analysis search-bars/snapshot/quant/simulate
+  -> alice analysis search-bars/snapshot/quant
   -> BarService
   -> vendor source or UTA broker source selected by barId
 ```

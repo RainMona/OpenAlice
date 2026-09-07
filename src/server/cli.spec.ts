@@ -26,6 +26,12 @@ function makeApp(manifestOnly = false): Hono {
     execute: ({ query }) => ({ symbol: query }),
   }) }, 'market-search')
 
+  toolCenter.register({ simulate: tool({
+    description: 'Unexported simulation fixture',
+    inputSchema: z.object({}),
+    execute: (): { executed: boolean } => { throw new Error('Removed simulation must not execute') },
+  }) }, 'simulation')
+
   const fakeSvc = {
     registry: {
       get: (id: string) => (id === 'ws1' ? { id: 'ws1', tag: 'demo' } : undefined),
@@ -65,10 +71,16 @@ describe('CLI gateway — data export', () => {
     expect(body.export).toBe('data')
     expect(body.groups['market']?.['search']?.tool).toBe('marketSearchForResearch')
     expect(body.groups).not.toHaveProperty('think')
+    expect(body.groups['analysis'] ?? {}).not.toHaveProperty('simulate')
   })
 
   it('rejects the removed calculator even when the tool remains registered', async () => {
     const response = await post('/cli/ws1/data/invoke', { tool: 'calculate', args: { expression: '2 + 2' } })
+    expect(response.status).toBe(404)
+  })
+
+  it('rejects direct invocation of the removed simulator', async () => {
+    const response = await post('/cli/ws1/data/invoke', { tool: 'simulate', args: {} })
     expect(response.status).toBe(404)
   })
 
