@@ -82,7 +82,7 @@ function TabFrame({ tab, visible }: { tab: Tab; visible: boolean }) {
       inert={!visible}
     >
       {shell === 'chat' || shell === 'auto-quant' || shell === 'prediction' ? (
-        <ChatPageShell mode={shell}>
+        <ChatPageShell mode={shell} spec={tab.spec}>
           <Component key={tab.id} spec={tab.spec} visible={visible} />
         </ChatPageShell>
       ) : shell === 'market' ? (

@@ -5,7 +5,7 @@
  * to whatever workspace+session this tab's spec points at:
  *
  *   { wsId }                — workspace selected, no session pinned: shows
- *                             a CTA prompting the user to spawn one.
+ *                             the new-conversation composer for that workspace.
  *   { wsId, sessionId }     — session pinned: shows the terminal slot for
  *                             that session, with the workspace's files
  *                             panel alongside.
@@ -16,6 +16,7 @@
  * keeps running on the server. Use the sidebar's × to actually delete.
  */
 
+import { useHarnessWorkbenchContext } from '../components/harness/context'
 import { useEffect } from 'react'
 import { Monitor, Settings } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -26,6 +27,7 @@ import { useWorkspaceSessionData } from '../hooks/useWorkspaceData'
 import { useWorkspace } from '../tabs/store'
 import { agentSupportsWeb } from '../components/workspace/api'
 import { workspaceDisplayName, workspaceDisplayTitle } from '../components/workspace/display'
+import { HarnessLandingPage } from './ChatLandingPage'
 import { WorkspaceView } from '../components/workspace/WorkspaceView'
 import { PageTopBar } from '../components/PageTopBar'
 import { WorkspaceFilesToggle } from '../components/workspace/WorkspaceFilesToggle'
@@ -41,13 +43,13 @@ interface Props {
 export function WorkspacePage({ spec, visible }: Props) {
   const { t } = useTranslation()
   const ctx = useWorkspaces()
+  const workbench = useHarnessWorkbenchContext()
   const openOrFocus = useWorkspace((s) => s.openOrFocus)
   const wsId = spec.params.wsId
   const sessionId = spec.params.sessionId ?? null
   const source = spec.params.source
   const {
     workspace,
-    sessions,
     session: activeRecord,
     updateRuntime,
   } = useWorkspaceSessionData(wsId, sessionId)
@@ -117,7 +119,7 @@ export function WorkspacePage({ spec, visible }: Props) {
     : ''
   const workspaceActions = (
     <>
-      {activeRecord && canSwitchSurface && (
+      {!workbench && activeRecord && canSwitchSurface && (
         <Button
           type="button"
           onClick={() => {
@@ -139,7 +141,7 @@ export function WorkspacePage({ spec, visible }: Props) {
         </Button>
       )}
       <WorkspaceFilesToggle />
-      <Button
+      {!workbench && <Button
         type="button"
         onClick={() => ctx.openAgentConfig(wsId)}
         variant="ghost"
@@ -149,19 +151,23 @@ export function WorkspacePage({ spec, visible }: Props) {
       >
         <Settings size={13} aria-hidden />
         {t('workspace.settings')}
-      </Button>
+      </Button>}
     </>
   )
 
-  // Sessions list: pass the full workspace.sessions. WorkspaceView's
-  // `runningSlots` is gated on sessionId so the multi-terminal mount
-  // only happens when a session is pinned (one session per tab still
-  // holds for the active path); when sessionId is null, the empty
-  // state needs the full list to render resume/continue cards.
+  if (!sessionId) return (
+    <div className="workspaces-root workspace-page-shell flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <PageTopBar title={workspaceName} titleHint={workspaceDisplayTitle(workspace)} actions={workspaceActions}>
+        {hasCustomName && <span className="hidden font-mono text-[10px] text-muted-foreground/70 sm:inline">{workspace.tag}</span>}
+      </PageTopBar>
+      <HarnessLandingPage key={wsId} mode={source ?? 'chat'} spec={{ params: { targetWsId: wsId } }} showHeader={false} />
+    </div>
+  )
+
   return (
     <div className={`workspaces-root workspace-page-shell flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden${terminalCanvas ? ' is-terminal-canvas' : ''}${pausedCanvas ? ' is-paused-canvas' : ''}`}>
       {/* Running renderers fill the shared header slot with session identity
-       * and these actions. Libraries and paused sessions own their header here. */}
+       * and these actions. Paused sessions own their header here. */}
       {!terminalCanvas && !webCanvas && (
         <PageTopBar title={workspaceName} titleHint={workspaceDisplayTitle(workspace)} actions={workspaceActions}>
             {hasCustomName && (
@@ -178,29 +184,15 @@ export function WorkspacePage({ spec, visible }: Props) {
           sessionId={sessionId}
           {...(source ? { source } : {})}
           activeRecord={activeRecord}
-          sessions={sessions}
           agents={ctx.agents}
           label={workspaceName}
           terminalHeaderActions={terminalCanvas || webCanvas ? workspaceActions : undefined}
-          onSpawnFresh={spawnDefault}
           onResume={(id) => ctx.resumeSession(wsId, id, source)}
           onUpdateSessionRuntime={(_id, update) => updateRuntime(update).then(() => undefined)}
           onSaveSessionDisplayName={(resumeId, displayName) => (
             ctx.setSessionDisplayName(wsId, resumeId, displayName)
           )}
           onOpenWeb={(id) => ctx.openWebSession(wsId, id, source)}
-          onSelectSession={(id) => {
-            // Running session — already alive on the server, just
-            // navigate. Mirrors the sidebar's onSelectSession path.
-            openOrFocus({
-              kind: 'workspace',
-              params: {
-                wsId,
-                sessionId: id,
-                ...(source ? { source } : {}),
-              },
-            })
-          }}
           onSessionLost={() => {
             // 4404 from the WS upgrade — the session is gone server-side.
             // Refresh the list; the reconcile effect will close this tab.

@@ -614,7 +614,7 @@ export function WorkspacesProvider({ children }: { children: ReactNode }) {
           : false
 
       // Deleting the Session currently on screen has a deterministic landing:
-      // its Workspace-level Session library. Open/focus that hub before closing
+      // its Workspace-level new-conversation composer. Open/focus that hub before closing
       // the pinned tab so closeTab's neighbour rule cannot send the user to an
       // unrelated editor.
       if (focusedOwnsSession) {
