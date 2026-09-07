@@ -999,6 +999,10 @@ export const workspacesHandlers = [
   http.get('/api/workspaces/:id/git/status', () =>
     HttpResponse.json({ branch: 'main', clean: true, files: [] }),
   ),
+  http.get('/api/workspaces/:id/cli/:export/manifest', ({ params }) => HttpResponse.json({
+    export: params.export, description: 'Demonstration command catalog', groupDescriptions: { help: 'Discover this CLI' },
+    groups: { help: { show: { description: 'Demonstration command. Production uses the live registry.', schema: { type: 'object', properties: { topic: { type: 'string', description: 'Topic to inspect' } }, required: ['topic'] } } } },
+  })),
   http.get('/api/workspaces/:id/files', ({ params, request }) => {
     const path = new URL(request.url).searchParams.get('path') ?? ''
     const listing = demoDirectoryListing(String(params.id), path)

@@ -63,7 +63,7 @@ export interface CliGatewayDeps {
 type WsMeta = { id: string; tag: string }
 
 /** Mount /cli/:wsId/:export/* onto an existing Hono app (the MCP server's app). */
-export function registerCliRoutes(app: Hono, deps: CliGatewayDeps): void {
+export function registerCliRoutes(app: Hono, deps: CliGatewayDeps, manifestOnly = false): void {
   const { toolCenter, workspaceToolCenter, inboxStore, entityStore, getWorkspaceService } = deps
 
   /** Resolve + validate the workspace from the URL path. */
@@ -209,7 +209,7 @@ export function registerCliRoutes(app: Hono, deps: CliGatewayDeps): void {
     return { ok: true, exp, ws: ws.meta }
   }
 
-  app.get('/cli/:wsId/:export/manifest', (c) => {
+  app.get(manifestOnly ? '/api/workspaces/:wsId/cli/:export/manifest' : '/cli/:wsId/:export/manifest', (c) => {
     const r = resolveCtx(c.req.param('wsId'), c.req.param('export'))
     if (!r.ok) return c.json({ error: r.error }, r.status)
     const cat = exportCatalog(r.exp, r.ws)
@@ -256,6 +256,9 @@ export function registerCliRoutes(app: Hono, deps: CliGatewayDeps): void {
       unmapped,
     })
   })
+
+  // UI documentation exposes discovery only, never an invocation alias.
+  if (manifestOnly) return
 
   app.post('/cli/:wsId/:export/invoke', async (c) => {
     const r = resolveCtx(c.req.param('wsId'), c.req.param('export'))
