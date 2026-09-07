@@ -22,7 +22,7 @@ exit means it failed, with the reason on stderr.
 ## Discover, don't guess
 
 ```bash
-alice --help                       # the groups: rss, market, analysis, think
+alice --help                       # the groups: rss, market, analysis
 alice <group> <verb> --help        # a verb's flags (which are required)
 ```
 
