@@ -2,6 +2,24 @@ import type { Resources } from './en'
 
 /** 日本語. Typed as `Resources` → must match en's key structure exactly. */
 export const ja: Resources = {
+  mirrors: {
+    "canonical": "正本",
+    "mirror-only": "ミラーのみ",
+    "legacy": "旧形式のコピー",
+    "mirror": "ミラー",
+    "source": "正本",
+    "noSource": "正本がありません。ランタイム側のコピーを閲覧できます。内容は上書きしません。",
+    "primaryHint": "正本を表示しています。ランタイムのミラーとの差異は同じスキルの下で確認できます。",
+    "checking": "ディレクトリを確認中…",
+    "unchecked": "一部未確認",
+    "changed": "差異あり",
+    "equal": "内容が一致",
+    "scope": "スクリプト、例、空フォルダーを含む全体を比較します。リンク、読み取り不可、サイズ超過、文字化け、走査上限は未確認として扱います。読み取り専用のスナップショットであり、継続的な同期ではありません。",
+    "sourceOnly": "ミラーに欠落",
+    "mirrorOnly": "ミラーにのみ存在",
+    "absent": "欠落",
+    "directory": "ディレクトリ"
+},
   capabilities: {
     "search": "名前と内容を検索…",
     "copy": "コマンドをコピー",
@@ -18,7 +36,7 @@ export const ja: Resources = {
     "copies": "同一内容のコピー {{count}} 件",
     "workspaceFile": "Workspace ファイル",
     "actualHint": "この Workspace から直接読み取っています。名前から出所や読み込み状態は推定しません。",
-    "skillsHint": "ディスク上の手順を閲覧できます。同一内容はまとめ、異なる内容は個別に表示します。",
+    "skillsHint": "Workspace のスキル正本とランタイムのミラーを閲覧します。",
     "instructionsHint": "この Workspace に実際に存在する指示ファイルです。",
     "empty": "一致する内容がありません。",
     "live": "現在のマニフェスト",
