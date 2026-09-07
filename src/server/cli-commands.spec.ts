@@ -59,8 +59,9 @@ describe('CLI_EXPORTS — data export (global tools)', () => {
     }
   })
 
-  it('does not export the calculator', () => {
+  it('does not export generic calculation or fixed trade simulation', () => {
     expect(mappedToolNames('data')).not.toContain('calculate')
+    expect(mappedToolNames('data')).not.toContain('simulate')
     expect(getExport('data')?.groupDescriptions).not.toHaveProperty('think')
   })
 

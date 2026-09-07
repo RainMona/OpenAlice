@@ -253,7 +253,7 @@ Example: grepRss({ pattern: "interest rate", lookback: "2d" })`,
     windowRss: tool({
       description: `Articles within a DATE WINDOW (event study), oldest-first — for aligning news against a price path ("what hit between the gap-up and the fade").
 
-Returns id + ISO time + title (+ matched snippet when a pattern is given), sorted oldest→newest so the timeline lines up with bars. Pair with marketSnapshot/simulate to attribute a move to a catalyst.
+Returns id + ISO time + title (+ matched snippet when a pattern is given), sorted oldest→newest so the timeline lines up with bars. Pair with dated market snapshots to compare the price path with candidate catalysts.
 
 Coverage is the user's SUBSCRIBED RSS feeds only (not the news at large) — an empty window means "nothing in the subscribed feeds for that span", not "nothing happened". Pass a \`pattern\` to filter, or omit it to get everything in the window.
 
