@@ -59,6 +59,7 @@ import { createHeadlessRoutes } from './routes/headless.js'
 import { attachWorkspacesWS, type AttachedWS } from './workspaces-ws.js'
 import { attachWorkspacesIpc, type AttachedWorkspaceIpc } from './workspaces-ipc.js'
 import { attachWebIpc, type AttachedWebIpc } from './web-ipc.js'
+import { registerCliRoutes } from '../server/cli.js'
 import { mountLocalToolGateway } from '../server/local-tool-gateway.js'
 import type { Server as HttpServer } from 'node:http'
 import { proxyHarnessSurface, attachHarnessSurfaceWS, type AttachedHarnessSurfaceWS } from './harness-surface-proxy.js'
@@ -229,6 +230,14 @@ export class WebPlugin implements Plugin {
       csrfTrustedOrigins,
       disabled: authDisabled,
     }))
+
+    registerCliRoutes(app, {
+      toolCenter: ctx.toolCenter,
+      workspaceToolCenter: ctx.workspaceToolCenter,
+      inboxStore: ctx.inboxStore,
+      entityStore: ctx.entityStore,
+      getWorkspaceService: () => this.workspaceServiceRef?.current ?? this.workspaceService,
+    }, true)
 
     // ==================== Mount route modules ====================
     // /api/channels remains the compatibility boundary for legacy web

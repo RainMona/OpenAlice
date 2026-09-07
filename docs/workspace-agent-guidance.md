@@ -95,6 +95,24 @@ changes apply, Workspace-only changes stay, and dual edits require a choice.
 Live CLI help and self-correcting errors remain the compatibility layer for old
 skills that a user deliberately preserves.
 
+## Browsing the installed contract
+
+The Workspace details page is a read-only capability browser. Skills are read
+through the existing Workspace file API from `.agents/skills`, `.claude/skills`,
+and `.pi/skills`; AGENTS.md and CLAUDE.md have a separate instruction view.
+Identical skill names and contents are grouped with their paths, while divergent
+copies remain separate. Supporting files and Markdown source are inspectable.
+This inventory describes files on disk, not proof that a native runtime loaded
+them, and does not inventory user-level or other native skill directories.
+
+CLI reference pages use the authenticated
+`GET /api/workspaces/:wsId/cli/:export/manifest` endpoint, sharing the native CLI
+gateway's live registry and schemas. This mount exposes no invoke route. The UI
+shows commands, required parameters, defaults, enums, and the raw schema; copying
+a command never runs it. Injection explanations show the launch contract rather
+than process environment values. Editing skills, credentials, and hooks remains
+outside this browser's scope.
+
 ## Review checklist
 
 - Is the rule durable enough to be always loaded, or does it belong in a skill?

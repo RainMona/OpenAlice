@@ -6,6 +6,7 @@ import { WorkspaceDetailsPage } from './WorkspaceDetailsPage'
 import type { useWorkspaceDetails } from '../hooks/useWorkspaceDetails'
 
 const mocks = vi.hoisted(() => ({ details: {} as ReturnType<typeof useWorkspaceDetails>, openOrFocus: vi.fn() }))
+vi.mock('../components/workspace-capabilities/CapabilityBrowser', () => ({ CapabilityBrowser: () => <div>Skill inventory</div>, CliBrowser: () => <div>Live CLI</div> }))
 vi.mock('../hooks/useWorkspaceDetails', () => ({ useWorkspaceDetails: () => mocks.details }))
 vi.mock('../tabs/store', () => ({ useWorkspace: (selector: (state: { openOrFocus: typeof mocks.openOrFocus }) => unknown) => selector(mocks) }))
 vi.mock('../components/FileContentView', () => ({ FileContentView: ({ result }: { result: { content?: string } }) => <article>{result.content}</article> }))
@@ -28,6 +29,7 @@ afterEach(cleanup)
 describe('WorkspaceDetailsPage', () => {
   it('shows instance content first, with a separate catalog guide and its own version', () => {
     render(<WorkspaceDetailsPage spec={{ kind: 'workspace-details', params: { wsId: 'one', source: 'chat' } }} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Workspace overview' }))
     expect(screen.getByRole('heading', { name: 'desk' })).toBeTruthy()
     expect(screen.getByText('v1.0')).toBeTruthy()
     expect(screen.getByText('My customized workspace')).toBeTruthy()
@@ -42,6 +44,7 @@ describe('WorkspaceDetailsPage', () => {
     mocks.details.readme = { kind: 'file_missing' }
     mocks.details.guide = { name: 'chat', content: null, error: 'Guide unavailable' }
     render(<WorkspaceDetailsPage spec={{ kind: 'workspace-details', params: { wsId: 'one', source: 'chat' } }} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Workspace overview' }))
     expect(screen.getByText(/There is no README.md/)).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Harness guide' }))
     expect(screen.getByRole('alert').textContent).toContain('Guide unavailable')

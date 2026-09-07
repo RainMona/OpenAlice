@@ -17,7 +17,7 @@ import { registerCliRoutes, type CliGatewayDeps } from './cli.js'
  * End-to-end gateway test using the real `calculate` tool (no client deps), so
  * the validate -> execute -> unwrap path is exercised for real, not mocked.
  */
-function makeApp(): Hono {
+function makeApp(manifestOnly = false): Hono {
   const toolCenter = new ToolCenter()
   toolCenter.register(createThinkingTools(), 'thinking') // registers `calculate`
 
@@ -36,7 +36,7 @@ function makeApp(): Hono {
   }
 
   const app = new Hono()
-  registerCliRoutes(app, deps)
+  registerCliRoutes(app, deps, manifestOnly)
   return app
 }
 
@@ -460,5 +460,18 @@ describe('CLI gateway — peer path (cross-workspace resolution)', () => {
     expect(status).toBe(200)
     expect(payload.ok).toBe(false)
     expect(payload.error).toMatch(/unknown workspace/)
+  })
+})
+
+
+describe('Workspace CLI documentation', () => {
+  it('shares the live manifest but exposes no invocation routes', async () => {
+    const docs = makeApp(true)
+    const expected = await app.request('/cli/ws1/data/manifest')
+    const actual = await docs.request('/api/workspaces/ws1/cli/data/manifest')
+    expect(await actual.json()).toEqual(await expected.json())
+    expect((await docs.request('/api/workspaces/missing/cli/data/manifest')).status).toBe(404)
+    expect((await docs.request('/api/workspaces/ws1/cli/data/invoke', { method: 'POST' })).status).toBe(404)
+    expect((await docs.request('/cli/ws1/data/invoke', { method: 'POST' })).status).toBe(404)
   })
 })
