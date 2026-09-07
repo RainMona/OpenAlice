@@ -43,6 +43,14 @@ export const en = {
     "directory": "Directory"
 },
   capabilities: {
+    ownerAlice: "Alice Harness injected",
+    ownerWorkspace: "Workspace supplied",
+    ownerUnknown: "Source unavailable",
+    ownerAliceHint: "Managed by the Alice Project injection layer. Local edits remain part of this Workspace; upgrades review them before replacement.",
+    ownerWorkspaceHint: "Supplied by the Workspace template or added locally. This content follows the Workspace lifecycle, independently of Alice Harness injection.",
+    ownerUnknownHint: "The ownership inventory could not be loaded. Files remain readable; no source is assumed.",
+    cliOwnerHint: "These CLIs are supplied by Alice Harness. The live registry reflects this Workspace’s switches; commands installed by the Workspace itself are not inventoried here.",
+
     "search": "Search names and content…",
     "copy": "Copy command",
     "copyFailed": "Copy failed. Select the command to copy it.",

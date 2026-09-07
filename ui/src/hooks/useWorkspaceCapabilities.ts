@@ -37,7 +37,9 @@ export interface CliManifest {
     >
   >
 }
+export type CapabilityOwner = 'alice-harness' | 'workspace' | 'unknown'
 export interface WorkspaceSkill {
+  owner?: CapabilityOwner
   name: string
   description?: string
   path: string
@@ -60,7 +62,15 @@ export async function loadWorkspaceCapabilities(
   const roots: string[] = []
   const errors: string[] = []
   const skills: WorkspaceSkill[] = []
-  const root = await listFiles(wsId, '')
+  const [root, ownership] = await Promise.all([
+    listFiles(wsId, ''),
+    fetchJson<{ managedSkillNames: string[] }>(`/api/workspaces/${encodeURIComponent(wsId)}/alice-harness`)
+      .then((value) => {
+        if (!value || !Array.isArray(value.managedSkillNames) || !value.managedSkillNames.every((name) => typeof name === 'string')) throw new Error('Alice Harness ownership inventory unavailable')
+        return new Set(value.managedSkillNames)
+      })
+      .catch((error) => { errors.push(`Alice Harness: ${error instanceof Error ? error.message : String(error)}`); return null }),
+  ])
   await Promise.all(
     ['.agents', '.claude', '.pi'].map(async (parent) => {
       if (
@@ -105,6 +115,7 @@ export async function loadWorkspaceCapabilities(
     const chosen = primary ?? claude ?? pi!
     grouped.push({
       ...chosen,
+      owner: ownership ? ownership.has(name) ? 'alice-harness' : 'workspace' : 'unknown',
       locations: copies.map((s) => s.path),
       source: primary
         ? 'canonical'
@@ -133,6 +144,7 @@ export async function loadWorkspaceCapabilities(
   const instructions: WorkspaceSkill[] = [
     {
       name: 'AGENTS.md',
+      owner: 'workspace',
       path:
         agents.kind === 'file_missing' && claude.kind === 'ok'
           ? 'CLAUDE.md'

@@ -32,6 +32,14 @@ export const ja: Resources = {
     "directory": "ディレクトリ"
 },
   capabilities: {
+    ownerAlice: "Alice Harness が注入",
+    ownerWorkspace: "Workspace が提供",
+    ownerUnknown: "提供元を確認できません",
+    ownerAliceHint: "Alice Project の注入層が管理します。ローカルの変更は保持され、更新前に差分を確認します。",
+    ownerWorkspaceHint: "Workspace テンプレートまたはローカルで追加された内容です。Alice Harness の注入とは独立して管理されます。",
+    ownerUnknownHint: "提供元の一覧を読み込めません。ファイルは閲覧できますが、提供元は推測しません。",
+    cliOwnerHint: "Alice Harness が提供する CLI を表示します。一覧はこの Workspace の設定を反映し、Workspace 独自のコマンドは含みません。",
+
     "search": "名前と内容を検索…",
     "copy": "コマンドをコピー",
     "copyFailed": "コピーできませんでした。コマンドを選択してコピーしてください。",

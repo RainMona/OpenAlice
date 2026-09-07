@@ -5,6 +5,7 @@ export interface AliceHarnessConfig {
   cli: Record<string, { enabled?: boolean; groups?: Record<string, boolean> }>
 }
 export interface AliceHarnessStatus {
+  managedSkillNames: string[]
   appliedVersion: string | null
   availableVersion: string
   config: AliceHarnessConfig
