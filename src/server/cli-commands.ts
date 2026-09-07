@@ -55,7 +55,6 @@ export const CLI_EXPORTS: Record<string, CliExport> = {
       rss: 'Search and read the user\'s collected subscribed-feed archive',
       market: 'Discover symbols, bar sources, and optional market-data vendors',
       analysis: 'Read dated K-lines, calculate indicators, and run bounded simulations',
-      think: 'Evaluate side-effect-free calculations',
     },
     commands: {
       // `rss`, not `news`: the backing store is the RSS collector's archive —
@@ -84,9 +83,6 @@ export const CLI_EXPORTS: Record<string, CliExport> = {
         // path-dependent backtest. The Retrospective / Time-Machine primitives.
         snapshot: 'marketSnapshot',
         simulate: 'simulate',
-      },
-      think: {
-        calc: 'calculate',
       },
     },
   },

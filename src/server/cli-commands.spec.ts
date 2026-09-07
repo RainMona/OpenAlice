@@ -59,6 +59,11 @@ describe('CLI_EXPORTS — data export (global tools)', () => {
     }
   })
 
+  it('does not export the calculator', () => {
+    expect(mappedToolNames('data')).not.toContain('calculate')
+    expect(getExport('data')?.groupDescriptions).not.toHaveProperty('think')
+  })
+
   it('is scope: global', () => {
     expect(getExport('data')?.scope).toBe('global')
   })

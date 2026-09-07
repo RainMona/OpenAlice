@@ -14,12 +14,17 @@ import { inboxPushFactory } from '../tool/inbox-push.js'
 import { registerCliRoutes, type CliGatewayDeps } from './cli.js'
 
 /**
- * End-to-end gateway test using the real `calculate` tool (no client deps), so
- * the validate -> execute -> unwrap path is exercised for real, not mocked.
+ * Exercise gateway validation, dispatch and response unwrapping with a local
+ * search fixture; no market provider is contacted.
  */
 function makeApp(manifestOnly = false): Hono {
   const toolCenter = new ToolCenter()
-  toolCenter.register(createThinkingTools(), 'thinking') // registers `calculate`
+  toolCenter.register(createThinkingTools(), 'thinking') // must remain unreachable from CLI
+  toolCenter.register({ marketSearchForResearch: tool({
+    description: 'Local search fixture',
+    inputSchema: z.object({ query: z.string() }),
+    execute: ({ query }) => ({ symbol: query }),
+  }) }, 'market-search')
 
   const fakeSvc = {
     registry: {
@@ -58,7 +63,13 @@ describe('CLI gateway — data export', () => {
       unmapped: string[]
     }
     expect(body.export).toBe('data')
-    expect(body.groups['think']?.['calc']?.tool).toBe('calculate')
+    expect(body.groups['market']?.['search']?.tool).toBe('marketSearchForResearch')
+    expect(body.groups).not.toHaveProperty('think')
+  })
+
+  it('rejects the removed calculator even when the tool remains registered', async () => {
+    const response = await post('/cli/ws1/data/invoke', { tool: 'calculate', args: { expression: '2 + 2' } })
+    expect(response.status).toBe(404)
   })
 
   it('manifest 404s on unknown workspace', async () => {
@@ -72,11 +83,11 @@ describe('CLI gateway — data export', () => {
   })
 
   it('invoke runs a mapped tool and returns its payload', async () => {
-    const res = await post('/cli/ws1/data/invoke', { tool: 'calculate', args: { expression: '2 + 2' } })
+    const res = await post('/cli/ws1/data/invoke', { tool: 'marketSearchForResearch', args: { query: 'AAPL' } })
     expect(res.status).toBe(200)
     const body = (await res.json()) as { content: Array<{ type: string; text?: string }> }
     const text = body.content.map((b) => b.text ?? '').join('')
-    expect(text).toContain('4')
+    expect(text).toContain('AAPL')
   })
 
   it('invoke rejects a tool name not on the CLI map (e.g. trading)', async () => {
@@ -85,7 +96,7 @@ describe('CLI gateway — data export', () => {
   })
 
   it('invoke 400s on invalid args', async () => {
-    const res = await post('/cli/ws1/data/invoke', { tool: 'calculate', args: {} })
+    const res = await post('/cli/ws1/data/invoke', { tool: 'marketSearchForResearch', args: {} })
     expect(res.status).toBe(400)
   })
 
@@ -94,16 +105,16 @@ describe('CLI gateway — data export', () => {
     // --totalQuantity) was stripped by non-strict parsing, staging a
     // quantity-less order that validated clean.
     const res = await post('/cli/ws1/data/invoke', {
-      tool: 'calculate',
-      args: { expression: '1 + 1', expresion: 'typo' },
+      tool: 'marketSearchForResearch',
+      args: { query: 'AAPL', qurey: 'typo' },
     })
     expect(res.status).toBe(400)
     const body = (await res.json()) as { error: string; details?: string }
-    expect(body.details).toMatch(/expresion/)
+    expect(body.details).toMatch(/qurey/)
   })
 
   it('invoke 404s on unknown workspace', async () => {
-    const res = await post('/cli/nope/data/invoke', { tool: 'calculate', args: { expression: '1' } })
+    const res = await post('/cli/nope/data/invoke', { tool: 'marketSearchForResearch', args: { query: 'AAPL' } })
     expect(res.status).toBe(404)
   })
 })
@@ -114,8 +125,8 @@ describe('CLI gateway — export scope isolation', () => {
     expect(res.status).toBe(404) // not in the data map → gated out
   })
 
-  it('the workspace export cannot reach a data tool (calculate)', async () => {
-    const res = await post('/cli/ws1/workspace/invoke', { tool: 'calculate', args: { expression: '1' } })
+  it('the workspace export cannot reach a data tool (marketSearchForResearch)', async () => {
+    const res = await post('/cli/ws1/workspace/invoke', { tool: 'marketSearchForResearch', args: { query: 'AAPL' } })
     expect(res.status).toBe(404) // not in the workspace map → gated out
   })
 
