@@ -20,7 +20,7 @@ import { exec as gitExec, type IGitStringExecutionOptions } from './git-executio
 
 import { CLI_EXPORTS } from '../server/cli-commands.js';
 import { aliceHarnessSourceVersion, injectAliceHarnessSkills } from './alice-harness-assets.js';
-import { ALICE_HARNESS_VERSION_PATH, ALICE_HARNESS_CONFIG_PATH, parseAliceHarnessConfig, isAliceHarnessSkillPath, readAliceHarnessConfig } from './alice-harness-policy.js';
+import { ALICE_HARNESS_VERSION_PATH, ALICE_HARNESS_CONFIG_PATH, LEGACY_ALICE_HARNESS_SKILLS, parseAliceHarnessConfig, isAliceHarnessSkillPath, readAliceHarnessConfig } from './alice-harness-policy.js';
 import { injectWorkspaceContext } from './context-injector.js';
 import type { Logger } from './logger.js';
 import type { TemplateMeta, TemplateRegistry } from './template-registry.js';
@@ -207,6 +207,7 @@ export class TemplateUpgradeManager {
       appliedVersion: await this.currentVersion(workspace) ?? null,
       availableVersion: await aliceHarnessSourceVersion(),
       runtimeAuthority: 'alice-project' as const,
+      managedSkillNames: [...LEGACY_ALICE_HARNESS_SKILLS],
       config: await readAliceHarnessConfig(workspace.dir),
       commands: Object.fromEntries(Object.values(CLI_EXPORTS).filter((exp) => exp.binary !== 'alice-workspace').map((exp) => [exp.binary, Object.keys(exp.commands)])),
     };

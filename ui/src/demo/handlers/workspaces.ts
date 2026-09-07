@@ -664,6 +664,7 @@ export const workspacesHandlers = [
   }),
   http.get('/api/workspaces/:id/alice-harness', ({ params }) => HttpResponse.json({
     appliedVersion: '1.0.0+demo', availableVersion: '1.1.0+demo', runtimeAuthority: 'alice-project',
+    managedSkillNames: ['alice', 'alice-analysis', 'alice-uta', 'traderhub', 'self-scheduling', 'alice-workspace'],
     config: demoHarnessConfigs.get(String(params.id)) ?? { schemaVersion: 1, cli: {} },
     commands: demoHarnessCommands,
   })),

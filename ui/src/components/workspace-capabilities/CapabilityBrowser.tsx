@@ -17,6 +17,7 @@ import { FileContentView } from '../FileContentView'
 import { CenteredLoading } from '../StateViews'
 import {
   cliExports,
+  type CapabilityOwner,
   useWorkspaceCapabilities,
   useWorkspaceCli,
 } from '../../hooks/useWorkspaceCapabilities'
@@ -203,6 +204,13 @@ function SkillFiles({
   )
 }
 
+const capabilityOwners: CapabilityOwner[] = ['alice-harness', 'workspace', 'unknown']
+const ownerKeys = {
+  'alice-harness': 'ownerAlice',
+  workspace: 'ownerWorkspace',
+  unknown: 'ownerUnknown',
+} as const
+
 export function CapabilityBrowser({
   wsId,
   view,
@@ -228,11 +236,13 @@ export function CapabilityBrowser({
       !data ? [] : view === 'instructions' ? data.instructions : data.skills,
     [data, view],
   )
-  const filtered = items.filter((i) =>
-    `${i.name} ${i.path} ${i.content.kind === 'ok' ? i.content.content : ''}`
-      .toLowerCase()
-      .includes(query.toLowerCase()),
-  )
+  const filtered = [...items]
+    .sort((a, b) => capabilityOwners.indexOf(a.owner ?? 'unknown') - capabilityOwners.indexOf(b.owner ?? 'unknown'))
+    .filter((i) =>
+      `${i.name} ${i.path} ${i.content.kind === 'ok' ? i.content.content : ''}`
+        .toLowerCase()
+        .includes(query.toLowerCase()),
+    )
   const current = filtered.find((i) => i.path === selected) ?? filtered[0]
   const attachment =
     attachmentChoice?.owner === current?.path
@@ -283,7 +293,8 @@ export function CapabilityBrowser({
         <div>
           <span className="cap-eyebrow">03 · LIFECYCLE</span>
           <h2>{t('capabilities.upgrades')}</h2>
-          <p>{t('capabilities.upgradesHint')}</p>
+          <p>{t('capabilities.ownerAliceHint')}</p>
+          <p>{t('capabilities.ownerWorkspaceHint')}</p>
         </div>
         {data.errors.map((e) => (
           <p key={e} role="alert">
@@ -324,25 +335,34 @@ export function CapabilityBrowser({
         <aside className="cap-directory">
           <SearchBox value={query} onChange={setQuery} />
           <nav aria-label={t(`capabilities.${view}`)}>
-            {filtered.map((i) => (
-              <button
-                className="cap-row"
-                aria-current={current?.path === i.path ? 'page' : undefined}
-                key={i.path}
-                onClick={() => {
-                  setSelected(i.path)
-                  setAttachment(undefined)
-                  setMobileDetail(true)
-                }}
-              >
-                <BookOpen size={15} aria-hidden />
-                <span>
-                  <strong>{i.name}</strong>
-                  <small>{t(`mirrors.${i.source ?? 'canonical'}`)}</small>
-                </span>
-                <ChevronRight size={13} aria-hidden />
-              </button>
-            ))}
+            {capabilityOwners.map((owner) => {
+              const owned = filtered.filter((item) => (item.owner ?? 'unknown') === owner)
+              if (!owned.length) return null
+              return (
+                <section className="cap-origin-group" key={owner} aria-label={t(`capabilities.${ownerKeys[owner]}`)}>
+                  <h3>{t(`capabilities.${ownerKeys[owner]}`)} <span>{owned.length}</span></h3>
+                  {owned.map((i) => (
+                    <button
+                      className="cap-row"
+                      aria-current={current?.path === i.path ? 'page' : undefined}
+                      key={i.path}
+                      onClick={() => {
+                        setSelected(i.path)
+                        setAttachment(undefined)
+                        setMobileDetail(true)
+                      }}
+                    >
+                      <BookOpen size={15} aria-hidden />
+                      <span>
+                        <strong>{i.name}</strong>
+                        <small>{t(`mirrors.${i.source ?? 'canonical'}`)}</small>
+                      </span>
+                      <ChevronRight size={13} aria-hidden />
+                    </button>
+                  ))}
+                </section>
+              )
+            })}
           </nav>
           {!filtered.length && (
             <p className="cap-empty">{t('capabilities.empty')}</p>
@@ -362,9 +382,10 @@ export function CapabilityBrowser({
             <>
               <div className="cap-reader-heading">
                 <span className="cap-eyebrow">
-                  {t('capabilities.workspaceFile')}
+                  {t(`capabilities.${ownerKeys[current.owner ?? 'unknown']}`)}
                 </span>
                 <h2>{current.name}</h2>
+                <p>{t(`capabilities.${ownerKeys[current.owner ?? 'unknown']}Hint`)}</p>
                 {current.description && <p>{current.description}</p>}
                 <code className="cap-path">{current.path}</code>
               </div>
@@ -442,7 +463,7 @@ export function CliBrowser({ wsId }: { wsId: string }) {
       <div className="cap-section-intro">
         <div>
           <h2>{t('capabilities.cli')}</h2>
-          <p>{t('capabilities.cliHint')}</p>
+          <p>{t('capabilities.cliOwnerHint')}</p>
         </div>
         <span className="cap-live">{t('capabilities.live')}</span>
       </div>

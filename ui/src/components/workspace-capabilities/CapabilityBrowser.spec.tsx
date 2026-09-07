@@ -16,6 +16,7 @@ vi.mock('../../hooks/useWorkspaceCapabilities', async (importOriginal) => ({
       skills: [
         {
           name: 'alpha',
+          owner: 'alice-harness',
           path: '.agents/skills/alpha/SKILL.md',
           locations: ['.agents/skills/alpha/SKILL.md'],
           content: {
@@ -25,6 +26,7 @@ vi.mock('../../hooks/useWorkspaceCapabilities', async (importOriginal) => ({
         },
         {
           name: 'beta',
+          owner: 'workspace',
           path: '.agents/skills/beta/SKILL.md',
           locations: ['.agents/skills/beta/SKILL.md'],
           content: { kind: 'ok', content: '# Beta method' },
@@ -92,4 +94,14 @@ it('collapses command groups without losing the reader and reveals search matche
   expect(group.getAttribute('aria-expanded')).toBe('false')
   fireEvent.click(group)
   expect(screen.getByRole('button', { name: 'inspect' })).toBeTruthy()
+})
+
+it('separates ownership groups while keeping source/mirror identity independent', () => {
+  render(<CapabilityBrowser wsId="one" view="skills" resolvePath={(p) => p} />)
+  expect(screen.getByRole('heading', { name: 'Alice Harness injected 1' })).toBeTruthy()
+  expect(screen.getByRole('heading', { name: 'Workspace supplied 1' })).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: /beta/ }))
+  expect(screen.getByText(/Supplied by the Workspace template or added locally/)).toBeTruthy()
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'beta' } })
+  expect(screen.queryByRole('heading', { name: /Alice Harness injected 1/ })).toBeNull()
 })

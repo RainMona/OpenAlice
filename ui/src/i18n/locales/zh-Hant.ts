@@ -40,6 +40,14 @@ export const zhHant: Resources = {
     "directory": "目錄"
 },
   capabilities: {
+    ownerAlice: "Alice Harness 注入",
+    ownerWorkspace: "Workspace 自帶",
+    ownerUnknown: "來源待確認",
+    ownerAliceHint: "由 Alice Project 注入層管理。本地修改仍屬於此工作區，升級時會先比較再處理。",
+    ownerWorkspaceHint: "來自工作區範本或後續本地新增，隨 Workspace 自身維護，與 Alice Harness 注入層獨立。",
+    ownerUnknownHint: "來源清單暫時無法讀取。仍可查閱檔案內容，暫不推斷歸屬。",
+    cliOwnerHint: "這裡展示 Alice Harness 提供的 CLI，即時清單反映此工作區的開關設定；不包含工作區自行安裝的其他命令。",
+
     "search": "搜尋名稱與內容…",
     "copy": "複製命令",
     "copyFailed": "複製失敗，請選取命令手動複製。",

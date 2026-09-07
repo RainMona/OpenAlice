@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   loadWorkspaceCapabilities,
   useWorkspaceCapabilities,
@@ -16,6 +16,7 @@ vi.mock('../components/workspace/api', () => ({
   readWorkspaceFile: mocks.read,
 }))
 vi.mock('../api/client', () => ({ fetchJson: mocks.json }))
+beforeEach(() => { mocks.json.mockResolvedValue({ managedSkillNames: ['same', 'alice-workspace'] }) })
 afterEach(() => {
   cleanup()
   vi.resetAllMocks()
@@ -42,6 +43,9 @@ describe('Workspace capability inventory', () => {
     }))
     const data = await loadWorkspaceCapabilities('one')
     expect(data.skills).toHaveLength(2)
+    expect(data.skills.find((s) => s.name === 'same')?.owner).toBe('alice-harness')
+    expect(data.skills.find((s) => s.name === 'changed')?.owner).toBe('workspace')
+    expect(data.instructions[0]?.owner).toBe('workspace')
     expect(data.skills.find((s) => s.name === 'same')?.locations).toHaveLength(
       2,
     )
@@ -118,4 +122,13 @@ it('keeps an orphan Claude skill inspectable under one identity', async () => {
     source: 'mirror-only',
     path: 'CLAUDE.md',
   })
+})
+
+it('keeps files readable with unknown ownership when the Project inventory fails', async () => {
+  mocks.json.mockRejectedValue(new Error('offline'))
+  mocks.list.mockImplementation(async (_id, path) => path === '' ? listing('.agents') : path === '.agents' ? listing('skills') : listing('same'))
+  mocks.read.mockResolvedValue({ kind: 'ok', content: 'local text' })
+  const data = await loadWorkspaceCapabilities('one')
+  expect(data.skills[0]).toMatchObject({ owner: 'unknown', content: { kind: 'ok' } })
+  expect(data.errors).toContain('Alice Harness: offline')
 })

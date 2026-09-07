@@ -109,6 +109,16 @@ primary source, `.claude/skills` is its runtime mirror, and existing `.pi/skills
 entries are legacy copies. Instructions similarly present AGENTS.md with its
 CLAUDE.md mirror. Missing primary sources retain inspectable runtime copies.
 
+The browser separately groups ownership into Alice Harness injection and
+Workspace-supplied content. The Project exposes its managed Skill names,
+including legacy injection names; the frontend does not maintain a second
+allowlist. Workspace-supplied includes template content and local additions,
+not proof of upstream provenance. AGENTS.md/CLAUDE.md belong to the Workspace
+instruction layer. Mirror location and divergence do not change ownership.
+A failed ownership lookup leaves files readable under an unknown-source group.
+The CLI tab inventories Alice Harness exports only, not arbitrary executables
+installed by a Workspace.
+
 Selecting an item compares its complete directory (including supporting files
 and empty folders). Missing, extra and changed entries have a side-by-side text
 view. Links, read failures, oversized or undecodable content and traversal limits

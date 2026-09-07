@@ -78,6 +78,12 @@ afterEach(async () => rm(root, {
 }));
 
 describe('TemplateUpgradeManager', () => {
+  it('exposes the injection-owned Skill inventory including legacy names', async () => {
+    const status = await manager(false, true).harnessStatus(workspace.id);
+    expect(status.managedSkillNames).toEqual(expect.arrayContaining(['alice', 'traderhub', 'alice-workspace']));
+    expect(status.managedSkillNames).not.toContain('template-skill');
+  });
+
   it('adopts missing policy transactionally and reconciles a disable at the same revision', async () => {
     const upgrade = new TemplateUpgradeManager({ registry, templates: { get: () => template } as unknown as TemplateRegistry, logger, aliceHarness: true });
     const preview = await upgrade.plan(workspace.id);
