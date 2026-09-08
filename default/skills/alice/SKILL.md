@@ -51,11 +51,24 @@ If a search for a non-US name comes up empty, check `alice market vendors`
 `alice rss` is an optional quick scan of collected subscription articles,
 with limited coverage. Command parameters are available in `alice rss --help`.
 
-**Technical / quantitative analysis** lives in its own surface — `alice analysis
-search-bars` (find a K-line barId) then `alice analysis quant` (compute). It's a
-small scripting language with a full function catalog, multi-timeframe panels,
-and source selection. **See the `alice-analysis` skill** for the manual; don't
-hand-roll indicators here.
+**Raw K-lines** use the same BarService as the Market chart:
+
+```bash
+alice market search-bars --query AAPL
+alice market bars --bar-id 'yfinance|AAPL' --asset-class equity --interval 1d --count 250 --output bars.json
+```
+
+The JSON file contains `bars` and `meta`, suitable for local Python/JavaScript
+or shell pipelines. Omit `--output` for stdout. Existing files are preserved.
+Sources retain their own identity; inspect coverage and freshness metadata.
+`alice analysis quant` and `snapshot` remain optional conveniences; see the
+`alice-analysis` Skill for their formula syntax.
+
+Workspace shells inherit their Alice Project automatically. Outside a Workspace,
+use `openalice exec --project <key> alice <group> <verb> ...`; omitting the
+selector uses the configured Project context/default. Explicit Project selection
+clears inherited Workspace/Session scope. Workspace collaboration commands need
+Workspace context.
 
 ## Collaboration and durable assets
 

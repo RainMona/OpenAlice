@@ -383,3 +383,23 @@ describe('searchBarSources — federated candidates', () => {
     expect(out.some((c) => c.source === 'uta')).toBe(false)
   })
 })
+
+describe('raw bar contract', () => {
+  it.each([
+    { interval: '2h' }, { interval: '1d', count: 0 }, { interval: '1d', count: 5001 },
+    { interval: '1d', start: '2024-02-30' }, { interval: '1d', start: '2024-02-01', end: '2024-01-01' },
+    { interval: '1d', asOf: '2024-01-01', end: '2024-01-02' },
+  ])('rejects invalid windows before contacting providers: %j', async opts => {
+    const deps = makeDeps()
+    await expect(createBarService(deps).getBars({ symbol: 'AAPL', assetClass: 'equity' }, opts)).rejects.toThrow()
+    expect(deps.equityClient.getHistorical).not.toHaveBeenCalled()
+  })
+  it('honors asOf and explicit lower bounds even when a vendor ignores them', async () => {
+    const result = await createBarService(makeDeps()).getBars({ symbol: 'AAPL', assetClass: 'equity' }, { interval: '1d', start: '2024-01-02', asOf: '2024-01-02' })
+    expect(result.bars.map(bar => bar.date)).toEqual(['2024-01-02'])
+    expect(result.meta).toMatchObject({ interval: '1d', limit: 5000, truncatedRows: 0, asOf: '2024-01-02' })
+  })
+  it('does not label daily commodity vendor prices as intraday', async () => {
+    await expect(createBarService(makeDeps()).getBars({ symbol: 'gold', assetClass: 'commodity' }, { interval: '1h' })).rejects.toThrow('only 1d')
+  })
+})

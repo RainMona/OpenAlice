@@ -15,7 +15,7 @@ OpenAlice has three market-data layers with different jobs:
 | Layer | Primary consumers | Contract |
 |---|---|---|
 | TraderHub/reference data | Native agents, boards, low-frequency research | `traderhub` CLI and `/api/reference/*` |
-| Bar service | Charts, quant tools, snapshots, simulations | `barId`-keyed K-line provider federation through `/api/bars` |
+| Bar service | Charts, raw CLI exports, quant tools and snapshots | `barId`-keyed K-line provider federation through `/api/bars` |
 | Embedded provider compatibility | Remaining Alice fundamentals/search clients | Private `@traderalice/opentypebb` workspace package and `/api/market-data-v1` compatibility routes |
 
 The first two layers are the product architecture. The compatibility package is
@@ -35,14 +35,15 @@ low-frequency/reference research
   -> typed local fallback when supported
 
 K-lines and quantitative work
-  -> alice analysis search-bars/snapshot/quant
+  -> alice market search-bars/bars (raw data)
+  -> optional alice analysis snapshot/quant
   -> BarService
   -> vendor source or UTA broker source selected by barId
 ```
 
 `traderhub` is intentionally named after the hosted/reference domain. It owns
 boards, fundamentals, macro series, calendars, ETFs, and related slow-moving
-research data. `alice analysis` owns bar discovery and price-path analysis.
+research data. `alice market` owns bar discovery and raw history; `alice analysis` supplies optional price-path calculations.
 
 ## TraderHub and Reference Data
 
@@ -80,7 +81,7 @@ through the hub without copying the hub's upstream credential into OpenAlice.
 
 `src/domain/market-data/bars/` is the canonical price-history layer. A bar
 source is addressed by `barId`, so provider selection is explicit and stable
-across search, charting, snapshots, and simulations.
+across search, charting, snapshots, and raw exports.
 
 BarService federates:
 
@@ -163,3 +164,22 @@ This read path survives index eviction and restart without a persisted format
 change. It returns stored feed content, which may be only a summary, and does
 not fetch the publisher webpage. Empty search results establish only that no
 match exists in the available subscribed-feed index.
+
+## Raw history consumption
+
+`alice market bars --bar-id 'yfinance|AAPL' --asset-class equity --interval 1d
+--count 250 --output bars.json` returns `{ bars, meta }`. Without `--output`,
+JSON goes to stdout for pipelines. Chart `/api/bars` retains its existing
+`{ results, meta }` envelope over exactly the same service.
+
+`meta` carries source identity, interval, freshness, response ceiling and local
+`truncatedRows`. A zero truncation count does not prove upstream completeness.
+The service returns at most 5,000 bars and rejects invalid counts, unsupported
+intervals and invalid/conflicting dates. `asOf` anchors vendor requests as well
+as broker requests. Commodity vendor spot history supports daily bars only.
+Dates and OHLCV retain provider semantics: adjustment policy, exchange timezone
+and whether the latest candle is complete are not guaranteed by this envelope.
+Freshness is a date-level weekday estimate, not a live-market assertion.
+
+Outside a Workspace use `openalice exec --project <key> alice market bars ...`.
+No formula engine is needed to export data or process it with local code.
