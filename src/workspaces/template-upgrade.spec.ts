@@ -114,6 +114,8 @@ describe('TemplateUpgradeManager', () => {
     await upgrade.apply(workspace.id, { planDigest: preview.planDigest, projection: install });
     expect(await readFile(join(workspace.dir, '.agents/skills/alice/SKILL.md'), 'utf8')).toBeTruthy();
     expect(await upgrade.currentVersion(workspace)).toBe('unversioned');
+    const versions = () => readFile(join(workspace.dir, '.alice/alice-harness-version.json'), 'utf8').then(JSON.parse);
+    expect((await versions()).skillVersions.alice.version).toBe(preview.toVersion);
     await expect(readFile(join(workspace.dir, '.agents/skills/traderhub/SKILL.md'))).rejects.toMatchObject({ code: 'ENOENT' });
     expect(JSON.parse(await readFile(join(workspace.dir, '.alice/alice-harness-config.json'), 'utf8'))).toMatchObject({ cli: { alice: { enabled: false } }, skills: { alice: true } });
     const remove = { skill: 'alice', action: 'remove' } as const;
@@ -121,11 +123,49 @@ describe('TemplateUpgradeManager', () => {
     await upgrade.apply(workspace.id, { planDigest: removal.planDigest, projection: remove });
     await expect(readFile(join(workspace.dir, '.agents/skills/alice/SKILL.md'))).rejects.toMatchObject({ code: 'ENOENT' });
     expect(JSON.parse(await readFile(join(workspace.dir, '.alice/alice-harness-config.json'), 'utf8')).skills.alice).toBe(false);
+    expect((await versions()).skillVersions.alice).toBeUndefined();
     const restored = await upgrade.plan(workspace.id, install);
     await upgrade.apply(workspace.id, { planDigest: restored.planDigest, projection: install });
     expect(await readFile(join(workspace.dir, '.claude/skills/alice/SKILL.md'), 'utf8')).toBe(await readFile(join(workspace.dir, '.agents/skills/alice/SKILL.md'), 'utf8'));
     const catalog = await upgrade.projectHarnessCatalog();
-    expect(catalog.workspaces[0]?.projections?.find((skill) => skill.name === 'alice')).toMatchObject({ installed: true, enabled: true, customized: false, mirrorDiverged: false });
+    expect(catalog.workspaces[0]?.projections?.find((skill) => skill.name === 'alice')).toMatchObject({ installed: true, enabled: true, customized: false, mirrorDiverged: false, injectedVersion: restored.toVersion, injectedAt: expect.any(String) });
+  });
+
+  it('does not infer a per-Skill version from an older bundle-only record', async () => {
+    const upgrade = new TemplateUpgradeManager({ registry, templates: { get: () => template } as unknown as TemplateRegistry, logger, aliceHarness: true });
+    const plan = await upgrade.plan(workspace.id);
+    await upgrade.apply(workspace.id, { planDigest: plan.planDigest });
+    const path = join(workspace.dir, '.alice/alice-harness-version.json');
+    const state = JSON.parse(await readFile(path, 'utf8'));
+    delete state.skillVersions;
+    await writeFile(path, JSON.stringify(state));
+    expect(await upgrade.skillProjection(workspace.id, 'alice')).toMatchObject({ installed: true, injectedVersion: null, injectedAt: null });
+    expect(await upgrade.currentVersion(workspace)).toBe(plan.toVersion);
+  });
+
+  it('recovers a committed scoped revision without advancing other Skill records', async () => {
+    const upgrade = new TemplateUpgradeManager({ registry, templates: { get: () => template } as unknown as TemplateRegistry, logger, aliceHarness: true });
+    const all = await upgrade.plan(workspace.id);
+    await upgrade.apply(workspace.id, { planDigest: all.planDigest });
+    const statePath = join(workspace.dir, '.alice/alice-harness-version.json');
+    const oldState = JSON.parse(await readFile(statePath, 'utf8'));
+    oldState.skillVersions.alice.version = '0.9.0+old';
+    await writeFile(statePath, JSON.stringify(oldState));
+    const projection = { skill: 'alice', action: 'restore' } as const;
+    const plan = await upgrade.plan(workspace.id, projection);
+    await upgrade.apply(workspace.id, { planDigest: plan.planDigest, projection });
+    // Recreate the crash window after the file commit but before bookkeeping.
+    await writeFile(statePath, JSON.stringify(oldState));
+    const transaction = join(workspace.dir, '.alice/alice-harness-upgrade/transaction');
+    await mkdir(transaction, { recursive: true });
+    await writeFile(join(transaction, 'incoming.json.gz'), await readFile(join(workspace.dir, '.alice/alice-harness-upgrade/baseline.json.gz')));
+    await writeFile(join(transaction, 'journal.json'), JSON.stringify({ schemaVersion: 1, workspaceId: workspace.id, template: 'alice-harness', fromVersion: all.toVersion, toVersion: all.toVersion, planDigest: plan.planDigest, touchedPaths: [], preparedAt: new Date().toISOString(), projection: { ...projection, version: plan.toVersion } }));
+    await upgrade.recover();
+    const recovered = JSON.parse(await readFile(statePath, 'utf8'));
+    expect(recovered.skillVersions.alice.version).toBe(plan.toVersion);
+    expect(recovered.skillVersions.traderhub).toEqual(oldState.skillVersions.traderhub);
+    expect(recovered.appliedVersion).toBe(oldState.appliedVersion);
+    await expect(readFile(join(transaction, 'journal.json'))).rejects.toMatchObject({ code: 'ENOENT' });
   });
 
   it('reviews restore and rejects a stale Skill action without changing configuration', async () => {
@@ -148,6 +188,11 @@ describe('TemplateUpgradeManager', () => {
     const upgrade = new TemplateUpgradeManager({ registry, templates: { get: () => template } as unknown as TemplateRegistry, logger, aliceHarness: true });
     const all = await upgrade.plan(workspace.id);
     await upgrade.apply(workspace.id, { planDigest: all.planDigest });
+    const statePath = join(workspace.dir, '.alice/alice-harness-version.json');
+    const originalState = JSON.parse(await readFile(statePath, 'utf8'));
+    expect(originalState.skillVersions.traderhub.version).toBe(all.toVersion);
+    originalState.skillVersions.alice.version = '0.9.0+old';
+    await writeFile(statePath, JSON.stringify(originalState));
     const baselinePath = join(workspace.dir, '.alice/alice-harness-upgrade/baseline.json.gz');
     const baseline = JSON.parse(gunzipSync(await readFile(baselinePath)).toString());
     for (const root of ['.agents', '.claude']) {
@@ -165,6 +210,9 @@ describe('TemplateUpgradeManager', () => {
     expect(await readFile(join(workspace.dir, '.agents/skills/traderhub/SKILL.md'), 'utf8')).toBe('keep my unrelated changes');
     const after = JSON.parse(gunzipSync(await readFile(baselinePath)).toString());
     expect(after.files['.agents/skills/traderhub/SKILL.md']).toEqual(baseline.files['.agents/skills/traderhub/SKILL.md']);
+    const updatedState = JSON.parse(await readFile(statePath, 'utf8'));
+    expect(updatedState.skillVersions.alice.version).toBe(preview.toVersion);
+    expect(updatedState.skillVersions.traderhub).toEqual(originalState.skillVersions.traderhub);
   });
 
   it('requires manual repair of a linked Skill file before removal or restore', async () => {

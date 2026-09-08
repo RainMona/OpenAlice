@@ -32,6 +32,16 @@ export const zh: Resources = {
     "directory": "目录"
 },
   skillManager: {
+    chooseWorkspace: "选择工作区",
+    lastBundle: "上次整套注入",
+    injectedVersion: "已注入版本",
+    projectVersion: "Project 版本",
+    status: "状态",
+    mirrorShort: "镜像有差异",
+    more: "{{skill}} 的更多操作",
+    injectedAt: "注入于",
+    bundleUpdates: "整套注入更新",
+
     title: "Skills",
     prototypes: "Project 原型",
     search: "搜索 Skills",

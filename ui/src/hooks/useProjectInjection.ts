@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchJson } from '../api/client'
 import { applyTemplateUpgrade, type TemplateUpgradePlan } from '../components/workspace/api'
 export interface SkillProjection {
+  injectedVersion?: string | null
+  injectedAt?: string | null
   name: string
   enabled: boolean
   installed: boolean

@@ -32,6 +32,16 @@ export const ja: Resources = {
     "directory": "ディレクトリ"
 },
   skillManager: {
+    chooseWorkspace: "ワークスペースを選択",
+    lastBundle: "前回の一括注入",
+    injectedVersion: "注入済みバージョン",
+    projectVersion: "Project バージョン",
+    status: "状態",
+    mirrorShort: "ミラーに差分あり",
+    more: "{{skill}} のその他の操作",
+    injectedAt: "注入日時",
+    bundleUpdates: "一括注入の更新",
+
     title: "Skills",
     prototypes: "Project 原本",
     search: "Skills を検索",

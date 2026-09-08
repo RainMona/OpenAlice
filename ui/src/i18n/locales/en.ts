@@ -43,6 +43,16 @@ export const en = {
     "directory": "Directory"
 },
   skillManager: {
+    chooseWorkspace: "Choose Workspace",
+    lastBundle: "Last full injection",
+    injectedVersion: "Injected version",
+    projectVersion: "Project version",
+    status: "Status",
+    mirrorShort: "Mirror differs",
+    more: "More actions for {{skill}}",
+    injectedAt: "Injected",
+    bundleUpdates: "Full injection updates",
+
     title: "Skills",
     prototypes: "Project prototypes",
     search: "Search Skills",

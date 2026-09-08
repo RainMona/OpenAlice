@@ -76,9 +76,11 @@ interface TemplateUpgradeState {
   readonly appliedAt: string;
   readonly source: 'creation' | 'upgrade';
   readonly commit?: string;
+  readonly skillVersions?: Readonly<Record<string, { version: string; appliedAt: string }>>;
 }
 
 interface UpgradeJournal {
+  readonly projection?: SkillProjectionRequest & { version: string };
   readonly schemaVersion: typeof STATE_SCHEMA_VERSION;
   readonly workspaceId: string;
   readonly template: string;
@@ -231,6 +233,7 @@ export class TemplateUpgradeManager {
   }
 
   private async skillProjections(workspace: WorkspaceMeta, sources: Awaited<ReturnType<typeof aliceHarnessSkillCatalog>>, includeContent = false) {
+    const state = await readState(workspace.dir, this.paths);
     const local = await readManagedWorkspaceSnapshot(workspace.dir);
     const stored = await readBaseline(workspace.dir, this.paths);
     const baseline = stored?.files ?? await readLegacyRootBaseline(workspace.dir);
@@ -254,7 +257,10 @@ export class TemplateUpgradeManager {
       });
       const present = Object.keys(inspected).filter((path) => inspected[path]?.kind !== 'missing');
       return {
-        name: source.name, enabled: config.skills?.[source.name] ?? (defaults || source.name === 'self-scheduling'),
+        name: source.name,
+        injectedVersion: typeof state?.skillVersions?.[source.name]?.version === 'string' ? state.skillVersions[source.name]!.version : null,
+        injectedAt: typeof state?.skillVersions?.[source.name]?.appliedAt === 'string' ? state.skillVersions[source.name]!.appliedAt : null,
+        enabled: config.skills?.[source.name] ?? (defaults || source.name === 'self-scheduling'),
         installed: present.length > 0, canonicalPresent: Object.keys(canonical).length > 0,
         mirrorDiverged: digestPlan(canonical) !== digestPlan(mirror),
         customized: paths.some((path) => !sameFile(inspected[path] ?? missingFile(), baseline[path] ?? missingFile())),
@@ -404,6 +410,7 @@ export class TemplateUpgradeManager {
       fromVersion: plan.fromVersion,
       toVersion: input.projection ? plan.fromVersion : plan.toVersion,
       planDigest: plan.planDigest,
+      ...(input.projection ? { projection: { ...input.projection, version: plan.toVersion } } : {}),
       touchedPaths: changedPaths,
       preparedAt: new Date().toISOString(),
     };
@@ -437,7 +444,7 @@ export class TemplateUpgradeManager {
         'commit', '--allow-empty', '-q', '-m', message,
       ]);
       const commit = (await runGit(workspace.dir, ['rev-parse', 'HEAD'])).trim();
-      await persistAppliedState(workspace.dir, input.projection ? { ...template, version: plan.fromVersion } : template, incoming, 'upgrade', commit, this.paths);
+      await persistAppliedState(workspace.dir, input.projection ? { ...template, version: plan.fromVersion } : template, incoming, 'upgrade', commit, this.paths, journal.projection);
       await rm(join(workspace.dir, this.paths.transaction), { recursive: true, force: true });
       this.opts.logger.info('template_upgrade.applied', {
         workspaceId: workspace.id,
@@ -615,7 +622,7 @@ export class TemplateUpgradeManager {
       await persistAppliedState(workspace.dir, {
         ...template,
         version: journal.toVersion,
-      }, incoming.files, 'upgrade', commit, this.paths);
+      }, incoming.files, 'upgrade', commit, this.paths, journal.projection);
       await rm(join(workspace.dir, this.paths.transaction), { recursive: true, force: true });
       this.opts.logger.info('template_upgrade.recovered_committed', {
         workspaceId: workspace.id,
@@ -960,7 +967,19 @@ async function persistAppliedState(
   source: TemplateUpgradeState['source'],
   commit?: string,
   paths = TEMPLATE_PATHS,
+  projection?: SkillProjectionRequest & { version: string },
 ): Promise<void> {
+  const appliedAt = new Date().toISOString();
+  const previous = projection ? await readState(workspaceDir, paths) : null;
+  const skillVersions = { ...(projection ? previous?.skillVersions : {}) };
+  if (template.name === 'alice-harness') {
+    for (const skill of ALICE_HARNESS_SKILLS) {
+      if (projection && projection.skill !== skill) continue;
+      if (Object.keys(baseline).some((path) => isProjectionPath(path, skill))) {
+        skillVersions[skill] = { version: projection?.version ?? template.version, appliedAt };
+      } else delete skillVersions[skill];
+    }
+  }
   await ensureStateExcluded(workspaceDir, paths);
   await writeCompressedJson(join(workspaceDir, paths.baseline), {
     schemaVersion: STATE_SCHEMA_VERSION,
@@ -970,7 +989,8 @@ async function persistAppliedState(
     schemaVersion: STATE_SCHEMA_VERSION,
     template: template.name,
     appliedVersion: template.version,
-    appliedAt: new Date().toISOString(),
+    appliedAt,
+    ...(template.name === 'alice-harness' ? { skillVersions } : {}),
     source,
     ...(commit ? { commit } : {}),
   } satisfies TemplateUpgradeState);

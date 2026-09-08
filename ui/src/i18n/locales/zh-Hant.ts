@@ -40,6 +40,16 @@ export const zhHant: Resources = {
     "directory": "目錄"
 },
   skillManager: {
+    chooseWorkspace: "選擇工作區",
+    lastBundle: "上次整套注入",
+    injectedVersion: "已注入版本",
+    projectVersion: "Project 版本",
+    status: "狀態",
+    mirrorShort: "鏡像有差異",
+    more: "{{skill}} 的更多操作",
+    injectedAt: "注入於",
+    bundleUpdates: "整套注入更新",
+
     title: "Skills",
     prototypes: "Project 原型",
     search: "搜尋 Skills",

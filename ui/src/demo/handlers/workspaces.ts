@@ -371,6 +371,7 @@ const demoAgentRuntimeReadiness = {
 }
 
 const demoSkillProjection = () => ({
+  injectedVersion: '1.0.0+previous', injectedAt: '2026-07-08T00:00:00.000Z',
   name: 'alice', enabled: true, installed: true, canonicalPresent: true,
   customized: true, sourceChanged: true, mirrorDiverged: false,
   files: ['.agents', '.claude'].map((root) => ({ path: `${root}/skills/alice/SKILL.md`, currentPreview: '# Alice\n\nLocal research instructions.', sourcePreview: '# Alice\n\nProject-provided collaboration and data CLI guidance.', differs: true, truncated: false, unverified: false })),
