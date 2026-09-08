@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -51,6 +52,12 @@ describe('buildPackagedToolchainSmokePlan', () => {
         'managed Pi resolves packaged fd/rg without download',
         'workspace CLI payload through packaged Electron Node',
       ])
+      const cli = plan.commands.at(-1)!
+      const result = spawnSync(process.execPath, ['src/workspaces/cli/bin/openalice-cli.cjs'], {
+        encoding: 'utf8', env: { ...process.env, ...cli.env, ELECTRON_RUN_AS_NODE: '' },
+      })
+      expect(result.status).toBe(cli.expectStatus)
+      expect(result.stderr).toMatch(cli.expectStderr)
       expect(plan.commands[1].expectStdout.test('0.83.0\n')).toBe(true)
       expect(plan.commands[1].expectStdout.test('0x83x0\n')).toBe(false)
       expect(packagedElectronExecutable(appRoot, 'darwin')?.replaceAll('\\', '/'))
