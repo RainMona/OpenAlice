@@ -1,15 +1,9 @@
 ---
 name: alice
 description: >
-  Research and Workspace collaboration through the `alice` CLI. Data surfaces: the collected-RSS archive (`alice rss`), cross-asset symbol
-  search (`alice market search` → barIds), and K-line quant analysis
-  (`alice analysis`). Use for: "grep the collected feeds for the Fed", "find
-  the barId for AAPL", "compute RSI on this chart", "I can't find a Taiwan/CN
-  stock — add a data vendor". Output is JSON; discover every flag with
-  `alice --help` / `alice <group> <verb> --help` — do NOT guess.
-  (Low-frequency market data — fundamentals, macro series, calendars, boards —
-  is the separate `traderhub` CLI; the quant scripting manual is the
-  `alice-analysis` skill.)
+  Research data and Workspace collaboration through the `alice` CLI:
+  symbol discovery, K-line analysis, optional subscribed-article lookup,
+  peer conversations, Inbox and Issues. Use CLI help for command parameters.
   Also use alice for Workspace collaboration: peer discovery, Agent conversations,
   Inbox delivery, Issues, Session identity, tracked assets and template upgrades.
   Read references/collaboration.md for these workflows.
@@ -54,28 +48,8 @@ If a search for a non-US name comes up empty, check `alice market vendors`
 **before giving up** — the covering source may just be off. Each vendor's
 `howToUse` flags its quirks (e.g. twse wants 繁体 `台積電`, not 简体 `台积电`).
 
-**Search the collected-RSS archive, then read one article by its stable id**
-(the `id` is stable — you do **not** need to repeat `--lookback` to read it):
-
-```bash
-alice rss grep --pattern "interest rate" --lookback 2d
-alice rss read --id <id-from-the-results>
-```
-
-**Metadata filters** (`--meta` is repeatable):
-
-```bash
-alice rss grep --pattern BTC --meta source=coindesk --meta category=crypto
-```
-
-Know what `rss` is: an archive of articles Alice's collector pulled from the
-user's **subscribed feeds** — coverage is exactly the feed list, nothing more.
-It is NOT a general news search. Empty results mean "not in the subscribed
-feeds", not "nothing happened" — so don't stop at "nothing found." For news
-beyond the feeds (frontpages, breaking, a specific outlet, social chatter),
-that's what `opencli` reaches (the `opencli-reader` skill, when this workspace
-has it — it'll ask to install if needed). Say what's missing rather than
-quietly returning thin.
+`alice rss` is an optional quick scan of collected subscription articles,
+with limited coverage. Command parameters are available in `alice rss --help`.
 
 **Technical / quantitative analysis** lives in its own surface — `alice analysis
 search-bars` (find a K-line barId) then `alice analysis quant` (compute). It's a
