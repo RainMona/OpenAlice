@@ -74,12 +74,13 @@ interface Props {
    * only on React Router state: tab switches project their URL with
    * history.replaceState, which intentionally does not notify the router. */
   source?: string
+  displayTitle?: string
   /** Read-only mirror of the displayed series for sibling analysis panels.
    *  This avoids a second bar request on bespoke detail pages. */
   onSnapshot?: (snapshot: KlineSnapshot) => void
 }
 
-export function KlinePanel({ selection, source, onSnapshot }: Props) {
+export function KlinePanel({ selection, source, onSnapshot, displayTitle }: Props) {
   const effectiveTheme = useEffectiveTheme()
   const effectivePalette = useEffectivePalette()
   const [searchParams] = useSearchParams()
@@ -319,24 +320,25 @@ export function KlinePanel({ selection, source, onSnapshot }: Props) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between py-2 px-1 gap-3 flex-wrap">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-[13px] font-medium text-foreground truncate">{title}</span>
+      <div className="flex flex-col py-2 px-1 gap-2">
+        <div className="flex items-center gap-x-3 gap-y-1 min-w-0 flex-wrap">
+          <span className="text-[13px] font-medium text-foreground truncate">{displayTitle ?? title}</span>
           {meta && (
             <span
               className="inline-flex items-center gap-1.5 text-[11px] leading-[15px] font-medium text-muted-foreground"
               title={`Provider: ${meta.barId}${meta.barCapability ? ` (${meta.barCapability})` : ''}`}
             >
-              <span>{meta.sourceId}</span>{meta.barCapability && <span>{meta.barCapability}</span>}
+              <span>{meta.sourceId === 'eastmoney' ? '东方财富 · 前复权' : meta.sourceId}</span>{meta.barCapability && <span>{meta.barCapability}</span>}
             </span>
           )}
           {bars && bars.length > 0 && (
-            <span className="text-[11px] text-muted-foreground/60 truncate">
-              {bars.length} bars, {bars[0].date} → {bars[bars.length - 1].date}
+            <span className="text-[11px] text-muted-foreground sm:ml-auto"
+              title={`${bars[0].date} → ${bars[bars.length - 1].date}`}>
+              {bars.length} bars · {bars[0].date.slice(0, 10)} — {bars[bars.length - 1].date.slice(0, 10)}
             </span>
           )}
         </div>
-        <div className="flex items-center gap-5 flex-wrap">
+        <div className="flex items-center gap-x-5 gap-y-2 flex-wrap">
           {sourceOptions.length > 1 && (
             <label className="flex items-center gap-2">
               <span className="text-[11px] font-medium text-muted-foreground/70">Source</span>

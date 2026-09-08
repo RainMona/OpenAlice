@@ -215,3 +215,11 @@ requests for Shanghai/Shenzhen minute bars and daily history succeeded. Treat
 that as a diagnostic possibility, not a guaranteed recovery procedure. Do not
 automate the challenge, import browser cookies, or silently substitute another
 vendor under an Eastmoney bar ID.
+
+The Eastmoney equity page resolves its display name by exact bar ID and shows
+the six-digit security code and SSE/SZSE market label. Name lookup failure
+leaves a usable code-based heading and does not block history. Provider-native
+secids remain on the bar request; broker discovery receives the security code
+as a heuristic query, not a claimed canonical trading identity. The chart
+displays its forward-adjustment policy beside the source and keeps full candle
+timestamps available on the condensed date-range label.
