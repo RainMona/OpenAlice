@@ -206,3 +206,12 @@ venue's per-page cap must not silently turn a large request into an old first
 page. Pagination deduplicates timestamps and stops if the provider no longer
 advances; short results can still reflect upstream availability. Validate the
 installed Broker Pack as well as source code when changing this adapter.
+
+Eastmoney history can close a connection without an HTTP response while its
+quote endpoint still works. A transport error alone does not establish a DNS,
+proxy, or provider fault. In live acceptance (#1417), the official chart showed
+a human-verification challenge; after the user completed it, unchanged CLI
+requests for Shanghai/Shenzhen minute bars and daily history succeeded. Treat
+that as a diagnostic possibility, not a guaranteed recovery procedure. Do not
+automate the challenge, import browser cookies, or silently substitute another
+vendor under an Eastmoney bar ID.
