@@ -177,8 +177,19 @@ JSON goes to stdout for pipelines. Chart `/api/bars` retains its existing
 The service returns at most 5,000 bars and rejects invalid counts, unsupported
 intervals and invalid/conflicting dates. `asOf` anchors vendor requests as well
 as broker requests. Commodity vendor spot history supports daily bars only.
-Dates and OHLCV retain provider semantics: adjustment policy, exchange timezone
-and whether the latest candle is complete are not guaranteed by this envelope.
+Date bounds are inclusive calendar days (UTC days for intraday instants).
+Yahoo, Eastmoney and broker intraday timestamps retain explicit UTC offsets; daily/weekly
+bars remain calendar labels. Yahoo translates the inclusive end into its
+exclusive upstream bound and excludes an appended live-price tick from candle
+counts. The latest genuine candle may still be incomplete. Adjustment policy
+and session calendars remain provider-owned.
+
+Count-only requests use a bounded lookback rather than loading months of minute
+bars. Yahoo inferred windows respect recent-history retention; explicit older
+windows fail with a source-specific message. Yahoo accepts the common `1w`
+period. Unsupported 4h requests fail explicitly: callers can export 1h bars
+and aggregate locally. The chart switches to 5D/1M when selecting 1m/5m from a
+longer range and updates the focused asset route rather than a stale tab URL.
 Freshness is a date-level weekday estimate, not a live-market assertion.
 
 Outside a Workspace use `openalice exec --project <key> alice market bars ...`.

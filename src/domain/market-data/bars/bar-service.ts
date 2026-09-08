@@ -100,7 +100,7 @@ function startDateFor(opts: GetBarsOpts): string {
   const anchor = opts.asOf ?? opts.end
   const end = anchor ? new Date(anchor) : new Date()
   const days = opts.count != null
-    ? Math.max(getCalendarDays(opts.interval), Math.ceil(opts.count * perBarDays(opts.interval)) + 5)
+    ? Math.max(7, Math.ceil(opts.count * perBarDays(opts.interval)) + 5)
     : getCalendarDays(opts.interval)
   const start = new Date(end)
   start.setDate(start.getDate() - days)
@@ -120,10 +120,10 @@ function dateOf(bar: Bar, interval?: string): string {
   // A daily/weekly bar is a calendar day, not an instant — render date-only even
   // when a broker stamps it at the session open (e.g. Alpaca's 04:00/05:00 ET,
   // which also flips an hour across DST and looks like a bug). Intraday keeps
-  // its time; a UTC-midnight stamp is date-only regardless.
+  // its instant, including UTC-midnight candles.
   const daily = interval === '1d' || interval === '1w'
-  if (daily || iso.endsWith('T00:00:00.000Z')) return iso.slice(0, 10)
-  return iso.slice(0, 19).replace('T', ' ')
+  if (daily) return iso.slice(0, 10)
+  return iso
 }
 
 function barToOhlcv(bar: Bar, interval?: string): OhlcvBar {
@@ -197,7 +197,21 @@ export function createBarService(deps: BarServiceDeps): BarService {
     symbol: string,
     opts: GetBarsOpts,
   ): Promise<BarsResult> {
-    const start_date = startDateFor(opts)
+    if (opts.interval === '4h' && ['yfinance', 'eastmoney', 'twse'].includes(provider)) {
+      throw new Error(`${provider} does not supply 4h bars; request 1h and aggregate locally, or choose a source supporting 4h`)
+    }
+    if (provider === 'fmp' && opts.interval === '1w') throw new Error('fmp does not supply 1w bars; request 1d and aggregate locally')
+    let start_date = startDateFor(opts)
+    // Yahoo intraday retention is measured from now, not the requested anchor.
+    // Only inferred windows may shrink; explicit dates must remain truthful.
+    if (['yfinance', 'twse'].includes(provider) && ['1m', '5m', '15m', '30m', '1h'].includes(opts.interval)) {
+      const retention = opts.interval === '1m' ? 7 : opts.interval === '1h' ? 729 : 59
+      const earliest = new Date(Date.now() - retention * 86400000).toISOString().slice(0, 10)
+      if (!opts.start && start_date < earliest) start_date = earliest
+      if ((opts.start && opts.start < earliest) || (opts.end ?? opts.asOf ?? '9999') < earliest) {
+        throw new Error(`yfinance ${opts.interval} history is limited to recent ${retention} days; choose a later window, daily bars, or another source`)
+      }
+    }
     // Upper bound: the provider compatibility models apply end_date;
     // we also post-filter defensively in case a provider ignores it.
     const end_date = opts.end ?? opts.asOf
@@ -260,11 +274,14 @@ export function createBarService(deps: BarServiceDeps): BarService {
     const params: BarParams = {
       interval: toBarInterval(opts.interval),
       start: start ? new Date(start) : undefined,
-      end: (opts.end ?? opts.asOf) ? new Date((opts.end ?? opts.asOf)!) : undefined,
+      end: (opts.end ?? opts.asOf) ? new Date(`${opts.end ?? opts.asOf}T23:59:59.999Z`) : undefined,
       limit: opts.count,
     }
     const wireBars = await acct.getHistorical({ aliceId: barId }, params)
-    const bars = finalize(wireBars.map((b) => barToOhlcv(b, params.interval)), opts.count)
+    const bounded = wireBars.map((b) => barToOhlcv(b, params.interval)).filter((bar) =>
+      (!opts.start || bar.date.slice(0, 10) >= opts.start) &&
+      (!(opts.end ?? opts.asOf) || bar.date.slice(0, 10) <= (opts.end ?? opts.asOf)!))
+    const bars = finalize(bounded, opts.count)
     const symbol = parseBarId(barId)?.nativeSymbol ?? barId
     return {
       bars,
@@ -377,6 +394,7 @@ export function createBarService(deps: BarServiceDeps): BarService {
 
     async getBars(ref, opts) {
       toBarInterval(opts.interval)
+      if (ref.assetClass != null && !['equity', 'crypto', 'currency', 'commodity'].includes(ref.assetClass)) throw new Error(`Unsupported asset class: ${ref.assetClass}`)
       if (opts.count != null && (!Number.isInteger(opts.count) || opts.count < 1 || opts.count > MAX_BARS)) {
         throw new Error(`count must be an integer between 1 and ${MAX_BARS}`)
       }

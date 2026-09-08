@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { BarsResponse } from '../../api/market'
@@ -230,4 +230,23 @@ describe('KlinePanel chart controls', () => {
       expect(mocks.bars).toHaveBeenCalledWith(expect.objectContaining({ interval: '1h' }))
     })
   })
+})
+
+it('renders timezone-bearing intraday bars as finite chart timestamps', async () => {
+  const data = response('AAPL', 'yfinance|AAPL')
+  data.results![0].date = '2026-07-17T13:30:00.000Z'
+  mocks.bars.mockResolvedValue(data)
+  render(<MemoryRouter><KlinePanel selection={{ symbol: 'AAPL', assetClass: 'equity' }} /></MemoryRouter>)
+  await waitFor(() => expect(mocks.candleSetData).toHaveBeenCalledWith([expect.objectContaining({ time: Date.parse('2026-07-17T13:30:00Z') / 1000 })]))
+})
+
+function CurrentRoute() { const location = useLocation(); return <output data-testid="route">{location.pathname}</output> }
+
+it('switches to a usable minute window from a stale workspace route', async () => {
+  mocks.bars.mockResolvedValue(response('AAPL', 'yfinance|AAPL'))
+  render(<MemoryRouter initialEntries={['/chat/workspaces/old/details']}><CurrentRoute /><KlinePanel selection={{ symbol: 'AAPL', assetClass: 'equity' }} /></MemoryRouter>)
+  fireEvent.click(screen.getByRole('button', { name: '5m' }))
+  await waitFor(() => expect(mocks.bars).toHaveBeenLastCalledWith(expect.objectContaining({ interval: '5m', start: expect.any(String) })))
+  expect(screen.getByRole('button', { name: '1M' }).getAttribute('aria-pressed')).toBe('true')
+  expect(screen.getByTestId('route').textContent).toBe('/market/equity/AAPL')
 })

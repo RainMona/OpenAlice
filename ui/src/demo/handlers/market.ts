@@ -105,7 +105,8 @@ export const marketHandlers = [
     if (barId && !barId.startsWith('alpaca-paper|') && assetClass !== selected.assetClass) {
       return HttpResponse.json({ results: null, meta: null, error: `Vendor barId needs assetClass=${selected.assetClass}.` })
     }
-    const rawResults = demoMarketAAPL.historical.results ?? []
+    const end = url.searchParams.get('end') ?? url.searchParams.get('asOf')
+    const rawResults = (demoMarketAAPL.historical.results ?? []).filter(bar => !end || bar.date.slice(0, 10) <= end)
     const targetSpot = DEMO_FX[selected.symbol]?.spot
     const results = targetSpot == null
       ? rawResults
