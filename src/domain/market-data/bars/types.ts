@@ -78,6 +78,12 @@ export interface BarMeta {
   barId?: string
   provider?: string
   barCapability?: BarCapability
+  /** Requested interval. Sources may reject unsupported intervals. */
+  interval?: string
+  /** Local response ceiling; not a guarantee of upstream history completeness. */
+  limit?: number
+  /** Rows omitted by this service's hard ceiling, before count selection. */
+  truncatedRows?: number
   // ---- freshness contract ----
   // The point-in-time the request was anchored to (opts.end ?? asOf ?? today),
   // and whether the data actually REACHES it. A delayed vendor silently

@@ -39,9 +39,8 @@ const VENDOR_CAPABILITY: Record<string, BarCapability> = {
 const BAR_INTERVALS: readonly BarInterval[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w']
 
 function toBarInterval(interval: string): BarInterval {
-  return (BAR_INTERVALS as readonly string[]).includes(interval)
-    ? (interval as BarInterval)
-    : '1d'
+  if (!(BAR_INTERVALS as readonly string[]).includes(interval)) throw new Error(`Unsupported bar interval: ${interval}`)
+  return interval as BarInterval
 }
 
 /** Map a broker secType to the data-vendor asset class (for candidate display
@@ -201,7 +200,7 @@ export function createBarService(deps: BarServiceDeps): BarService {
     const start_date = startDateFor(opts)
     // Upper bound: the provider compatibility models apply end_date;
     // we also post-filter defensively in case a provider ignores it.
-    const end_date = opts.end
+    const end_date = opts.end ?? opts.asOf
     const p = (extra?: Record<string, unknown>) => ({ symbol, start_date, provider, ...(end_date ? { end_date } : {}), ...extra })
     let raw: Array<Record<string, unknown>>
     switch (assetClass) {
@@ -215,15 +214,20 @@ export function createBarService(deps: BarServiceDeps): BarService {
         raw = await deps.currencyClient.getHistorical(p({ interval: opts.interval }))
         break
       case 'commodity':
+        if (opts.interval !== '1d') throw new Error('Commodity vendor bars support only 1d; choose an explicit broker source for other intervals')
         raw = await deps.commodityClient.getSpotPrices(p())
         break
     }
     let bars = raw.filter(isFullBar) as OhlcvBar[]
+    if (opts.start) bars = bars.filter((b) => b.date.slice(0, 10) >= opts.start!)
     if (end_date) bars = bars.filter((b) => b.date.slice(0, 10) <= end_date)
     const filtered = finalize(bars, opts.count)
     return {
       bars: filtered,
       meta: buildMeta(symbol, filtered, {
+        interval: opts.interval,
+        limit: MAX_BARS,
+        truncatedRows: Math.max(0, bars.length - MAX_BARS),
         source: 'vendor',
         sourceId: provider,
         barId: formatBarId(provider, symbol),
@@ -265,6 +269,9 @@ export function createBarService(deps: BarServiceDeps): BarService {
     return {
       bars,
       meta: buildMeta(symbol, bars, {
+        interval: opts.interval,
+        limit: MAX_BARS,
+        truncatedRows: Math.max(0, wireBars.length - MAX_BARS),
         source: 'uta',
         sourceId,
         barId,
@@ -369,6 +376,19 @@ export function createBarService(deps: BarServiceDeps): BarService {
     },
 
     async getBars(ref, opts) {
+      toBarInterval(opts.interval)
+      if (opts.count != null && (!Number.isInteger(opts.count) || opts.count < 1 || opts.count > MAX_BARS)) {
+        throw new Error(`count must be an integer between 1 and ${MAX_BARS}`)
+      }
+      for (const key of ['start', 'end', 'asOf'] as const) {
+        const value = opts[key]
+        if (value != null && (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(value)) || new Date(value).toISOString().slice(0, 10) !== value)) {
+          throw new Error(`${key} must be a valid YYYY-MM-DD date`)
+        }
+      }
+      if (opts.end && opts.asOf && opts.end !== opts.asOf) throw new Error('end and asOf must agree')
+      const end = opts.end ?? opts.asOf
+      if (opts.start && end && opts.start > end) throw new Error('start must not follow end')
       if ('symbol' in ref) {
         const provider = deps.vendorProviders[ref.assetClass]
         return getVendorBars(provider, ref.assetClass, ref.symbol, opts)

@@ -1,3 +1,5 @@
+import { userDataHome } from '../core/paths.js';
+import { resolveAliceProjectIdentity } from '@traderalice/guardian-runtime';
 /**
  * Composition root for the Workspaces feature.
  *
@@ -1195,6 +1197,8 @@ export async function createWorkspaceService(opts: CreateWorkspaceServiceOptions
   } => {
     const baseEnv = buildSpawnEnv(process.env, {
       AQ_WS_ID: ws.id,
+      OPENALICE_HOME: userDataHome,
+      OPENALICE_PROJECT_ID: resolveAliceProjectIdentity({ home: userDataHome }).id,
       AQ_LAUNCHER_REPO_ROOT: config.launcherRepoRoot,
       // Local tool gateway for the injected `alice*` CLI shims. Electron/dev
       // can point this at the web listener's `/cli`; Docker/public-web can keep
