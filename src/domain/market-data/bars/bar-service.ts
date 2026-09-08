@@ -1,3 +1,4 @@
+import { inspectBarQuality, invalidOhlcFields } from './quality.js'
 import { describeBarFreshness } from './freshness.js'
 /**
  * Federated bar layer — service.
@@ -111,7 +112,7 @@ function startDateFor(opts: GetBarsOpts): string {
 // ---- bar shaping ----
 
 function isFullBar(d: Record<string, unknown>): boolean {
-  return d.close != null && d.open != null && d.high != null && d.low != null
+  return invalidOhlcFields(d).length === 0
 }
 
 function dateOf(bar: Bar, interval?: string): string {
@@ -235,13 +236,16 @@ export function createBarService(deps: BarServiceDeps): BarService {
         raw = await deps.commodityClient.getSpotPrices(p())
         break
     }
-    let bars = raw.filter(isFullBar) as OhlcvBar[]
-    if (opts.start) bars = bars.filter((b) => b.date.slice(0, 10) >= opts.start!)
-    if (end_date) bars = bars.filter((b) => b.date.slice(0, 10) <= end_date)
+    const boundedRaw = raw.filter(row =>
+      (!opts.start || String(row.date).slice(0, 10) >= opts.start) &&
+      (!end_date || String(row.date).slice(0, 10) <= end_date))
+    const quality = inspectBarQuality(boundedRaw)
+    const bars = boundedRaw.filter(isFullBar) as OhlcvBar[]
     const filtered = finalize(bars, opts.count)
     return {
       bars: filtered,
       meta: buildMeta(symbol, filtered, {
+        quality,
         interval: opts.interval,
         limit: MAX_BARS,
         truncatedRows: Math.max(0, bars.length - MAX_BARS),
@@ -284,11 +288,13 @@ export function createBarService(deps: BarServiceDeps): BarService {
     const bounded = wireBars.map((b) => barToOhlcv(b, params.interval)).filter((bar) =>
       (!opts.start || bar.date.slice(0, 10) >= opts.start) &&
       (!(opts.end ?? opts.asOf) || bar.date.slice(0, 10) <= (opts.end ?? opts.asOf)!))
-    const bars = finalize(bounded, opts.count)
+    const quality = inspectBarQuality(bounded as unknown as Array<Record<string, unknown>>)
+    const bars = finalize(bounded.filter(row => isFullBar(row as unknown as Record<string, unknown>)), opts.count)
     const symbol = parseBarId(barId)?.nativeSymbol ?? barId
     return {
       bars,
       meta: buildMeta(symbol, bars, {
+        quality,
         interval: opts.interval,
         limit: MAX_BARS,
         truncatedRows: Math.max(0, wireBars.length - MAX_BARS),

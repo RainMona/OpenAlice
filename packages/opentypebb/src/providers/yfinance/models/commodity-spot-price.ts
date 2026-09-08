@@ -71,6 +71,7 @@ export class YFinanceCommoditySpotPriceFetcher extends Fetcher {
     const results = await Promise.allSettled(
       symbols.map(async (sym) => {
         const data = await getHistoricalData(sym, {
+          preserveIncomplete: true,
           startDate: query.start_date ?? undefined,
           endDate: query.end_date ?? undefined,
           interval: '1d',

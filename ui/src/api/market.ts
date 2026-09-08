@@ -158,6 +158,14 @@ export interface BarSourceCandidate {
 
 /** Provenance of the bars currently shown — the explicit "who provided this". */
 export interface BarMeta {
+  quality?: {
+    scope: 'fetched_window_before_count'
+    inspectedRows: number
+    excludedRows: number
+    latestExcludedRecordAt: string | null
+    latestExcludedFields: string[]
+    reason: 'missing_or_non_finite_ohlc' | null
+  }
   freshness?: {
     earliestRecordAt?: string | null
     earliestTimestampKind?: 'instant' | 'date' | 'unknown'

@@ -14,7 +14,7 @@ export const YFinanceCurrencyHistoricalQueryParamsSchema = CurrencyHistoricalQue
 })
 export type YFinanceCurrencyHistoricalQueryParams = z.infer<typeof YFinanceCurrencyHistoricalQueryParamsSchema>
 
-export const YFinanceCurrencyHistoricalDataSchema = CurrencyHistoricalDataSchema
+export const YFinanceCurrencyHistoricalDataSchema = CurrencyHistoricalDataSchema.extend({ close: z.number().nullable() })
 export type YFinanceCurrencyHistoricalData = z.infer<typeof YFinanceCurrencyHistoricalDataSchema>
 
 export class YFinanceCurrencyHistoricalFetcher extends Fetcher {
@@ -50,6 +50,7 @@ export class YFinanceCurrencyHistoricalFetcher extends Fetcher {
     const results = await Promise.allSettled(
       symbols.map(async (sym) => {
         return getHistoricalData(sym, {
+          preserveIncomplete: true,
           startDate: query.start_date,
           endDate: query.end_date,
           interval,

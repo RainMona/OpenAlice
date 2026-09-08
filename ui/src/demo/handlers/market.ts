@@ -138,6 +138,8 @@ export const marketHandlers = [
       source: sourceId === 'alpaca-paper' ? 'uta' : 'vendor', sourceId, barId: barId ?? `${sourceId}|${selected.symbol}`,
       provider: sourceId, barCapability: sourceId === 'alpaca-paper' ? 'iex' : 'delayed',
     }
+    meta.quality = { scope: 'fetched_window_before_count', inspectedRows: results.length,
+      excludedRows: 0, latestExcludedRecordAt: null, latestExcludedFields: [], reason: null }
     meta.freshness = {
       earliestRecordAt: meta.from || null,
       delay: { status: 'unknown', estimatedSeconds: null, basis: 'insufficient_evidence', explanation: 'Demo snapshot; actual feed delay cannot be assessed.' },

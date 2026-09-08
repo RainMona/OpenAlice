@@ -344,6 +344,10 @@ export function KlinePanel({ selection, source, onSnapshot, displayTitle }: Prop
           )}
         </div>
         {meta && <BarFreshness meta={meta} />}
+        {meta?.quality && meta.quality.excludedRows > 0 && <p className="text-[11px] leading-5 text-warning" role="status">
+          {meta.quality.excludedRows} incomplete {meta.quality.excludedRows === 1 ? 'record' : 'records'} excluded from fetched window.
+          {meta.quality.latestExcludedRecordAt && ` Latest: ${meta.quality.latestExcludedRecordAt} (${meta.quality.latestExcludedFields.join(', ')} missing or invalid).`}
+        </p>}
         <div className="flex items-center gap-x-5 gap-y-2 flex-wrap">
           {sourceOptions.length > 1 && (
             <label className="flex items-center gap-2">

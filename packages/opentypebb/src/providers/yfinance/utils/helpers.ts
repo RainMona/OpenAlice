@@ -286,6 +286,7 @@ export async function getHistoricalData(
     endDate?: string | null
     interval?: string
     extendedHours?: boolean
+    preserveIncomplete?: boolean
   } = {},
 ): Promise<Record<string, unknown>[]> {
   const yf = getYF()
@@ -338,9 +339,9 @@ export async function getHistoricalData(
   }
   const records: Record<string, unknown>[] = []
   for (const q of quotes) {
-    // A missing candle must not invalidate the entire series. Zero/negative
-    // prices are real observations for some contracts (e.g. oil futures).
-    if (![q.open, q.high, q.low, q.close].every(value => typeof value === 'number' && Number.isFinite(value))) continue
+    if (!options.preserveIncomplete && ![q.open, q.high, q.low, q.close].every(value => typeof value === 'number' && Number.isFinite(value))) continue
+    // Preserve incomplete OHLC as null in the nullable provider model. The bar
+    // service excludes these records and reports quality diagnostics to callers.
 
     const date = q.date instanceof Date ? q.date : new Date(q.date as any)
     const dateStr = isIntraday
@@ -349,10 +350,10 @@ export async function getHistoricalData(
 
     records.push({
       date: dateStr,
-      open: q.open ?? null,
-      high: q.high ?? null,
-      low: q.low ?? null,
-      close: q.close ?? null,
+      open: typeof q.open === 'number' && Number.isFinite(q.open) ? q.open : null,
+      high: typeof q.high === 'number' && Number.isFinite(q.high) ? q.high : null,
+      low: typeof q.low === 'number' && Number.isFinite(q.low) ? q.low : null,
+      close: typeof q.close === 'number' && Number.isFinite(q.close) ? q.close : null,
       volume: q.volume ?? null,
       ...(q.adjclose != null ? { adj_close: q.adjclose } : {}),
     })

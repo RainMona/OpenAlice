@@ -48,6 +48,7 @@ export class YFinanceEquityHistoricalFetcher extends Fetcher {
     const results = await Promise.allSettled(
       symbols.map(async (sym) => {
         const data = await getHistoricalData(sym, {
+          preserveIncomplete: true,
           startDate: query.start_date,
           endDate: query.end_date,
           interval,
