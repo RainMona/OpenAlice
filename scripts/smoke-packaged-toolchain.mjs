@@ -213,7 +213,7 @@ const run = async (args) => {
         OPENALICE_CLI_DEBUG: '1',
       },
       expectStatus: 1,
-      expectStdout: /"toolUrl":"\/cli"/,
+      expectStderr: /"toolUrl":"\/cli"/,
     })
   }
 
