@@ -1,3 +1,4 @@
+import { WatchlistButton } from './WatchlistButton'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
@@ -322,7 +323,10 @@ export function KlinePanel({ selection, source, onSnapshot, displayTitle }: Prop
     <div className="flex flex-col h-full">
       <div className="flex flex-col py-2 px-1 gap-2">
         <div className="flex items-center gap-x-3 gap-y-1 min-w-0 flex-wrap">
-          <span className="text-[13px] font-medium text-foreground truncate">{displayTitle ?? title}</span>
+          <div className="flex min-w-0 items-center gap-1">
+            <span className="text-[13px] font-medium text-foreground truncate">{displayTitle ?? title}</span>
+            {selection && <WatchlistButton assetClass={selection.assetClass} symbol={selection.symbol} />}
+          </div>
           {meta && (
             <span
               className="inline-flex items-center gap-1.5 text-[11px] leading-[15px] font-medium text-muted-foreground"
