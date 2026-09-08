@@ -1,7 +1,7 @@
 # Desktop ASAR packaging
 
-Status: implementing on `codex/desktop-asar`, held for maintainer inspection
-before opening or merging a PR. Related issues: none.
+Status: implemented and verified on `codex/desktop-asar`; held for maintainer
+inspection before opening or merging a PR. Related issues: none.
 
 Owner guides: [[docs/managed-workspace-runtime.md]],
 [[docs/development-workflow.md]], [[docs/testing.md]].
@@ -17,11 +17,25 @@ and read an adjacent package.json inside an ASAR archive.
 `Resources/runtime` contains the resources used by external tools: vendor,
 Workspace CLI/templates, default assets, UI assets and product metadata.
 `OPENALICE_APP_HOME` names this physical resource root; application entrypoints
-remain relative to the archive. Native modules and dugite Git are explicitly
-unpacked. Keep Electron's RunAsNode support: managed Pi and backend children
-depend on it. No user-state migration or release publication is in scope.
+remain relative to the archive. An afterPack hook writes minimal runtime
+metadata from the archive. Native modules and macOS dugite Git are unpacked;
+Windows uses its existing external Git arrangement. Keep Electron's RunAsNode
+support: managed Pi and backend children depend on it. No user-state migration
+or release publication is in scope.
 
-## Ordered acceptance
+Packaged Electron reuses the existing internal bootstrap role to inject the
+archive's Git executor into physical Workspace templates. This avoids copying
+a dependency tree or adding a resolver environment variable.
+
+Windows platform file selection uses a FileSet with a positive `package.json`
+anchor and the dugite Git exclusion. A pure exclusion causes the real builder
+walker to add an implicit all-files pattern, duplicating external resources
+and admitting source/docs. Regression coverage instantiates the actual builder
+walker as well as its config merger and matchers. Archive inspection normalizes
+native paths and rejects duplicated resource files while allowing empty parent
+directory entries.
+
+## Acceptance
 
 - [x] Establish a clean branch from current dev and inspect runtime ownership.
 - [x] Verify Electron Node-mode ASAR ESM support with a disposable archive.
@@ -29,14 +43,15 @@ depend on it. No user-state migration or release publication is in scope.
 - [x] Implement split resources, archive assertions and regression coverage.
 - [x] Run focused tests, owning typechecks and full hermetic suite.
 - [x] Exercise real dev Electron PTY and packaged Workspace/toolchain paths.
-- [x] Compare package files/bytes and retain an isolated candidate for review.
-- [ ] Verify native Windows upgrade/toolchain acceptance before promotion.
+- [x] Compare package files/bytes and retain a candidate for review.
+- [x] Verify native Windows package/toolchain and previous-version state upgrade.
+- [ ] Maintainer acceptance of the held branch.
 
-Completion requires maintainer acceptance of the branch and applicable native
-platform evidence. Local unsigned acceptance cannot establish signing,
-notarization or Windows installer behavior.
+Local unsigned acceptance and Windows unpacked-package upgrade do not establish
+signing, notarization, signed installer replacement or native Intel macOS
+behavior. Release publication remains outside this experiment.
 
-## First candidate evidence (macOS arm64)
+## Package comparison (macOS arm64)
 
 Baseline: current dev `3258dc72`, unsigned directory package, same Electron and
 vendor inputs. Candidate output: `/tmp/openalice-asar-candidate-0689`.
@@ -54,76 +69,40 @@ is not compression. Resource filtering additionally removes vendor maps/types.
 Native dependencies and the Pi/toolchain tree remain physical, so this does
 not establish elimination of Windows long-path failures.
 
-The first Workspace run caught physical templates resolving `dugite` outside
-the archive. Packaged Electron now reuses the existing internal bootstrap role
-and injects the archive's Git executor; no copied dependency tree or new
-resolver environment variable is needed.
+## Local evidence
 
-Passed locally:
-- `pnpm electron:build`, root/desktop/UI typechecks.
-- Focused package, metadata hook and Workspace bootstrap specs (28 tests).
-- Final complete hermetic suite: 754 files, 6,731 passed, 3 skipped.
-- `electron:assert-package` and `electron:smoke-toolchain` on the candidate.
-- `electron:smoke:pty --skip-build` in source/dev Electron.
-- `electron:smoke:workspace --skip-build --skip-pack --package-root ...`:
-  all 12 receipt checks passed, including Git, PTY, every CLI, scheduling,
-  managed Pi structured output/compaction and the actual CLI side effect.
-- Packaged `--trading-mode`: lite -> readonly -> lite starts and stops archived
-  UTA against isolated data with no configured broker accounts.
+- `pnpm electron:build`, root/desktop/UI typechecks passed.
+- Final complete hermetic suite: 754 files, 6,734 passed, 3 skipped.
+- Final package inspector, metadata hook and toolchain focused suite: 20 passed;
+  workflow contracts: 92 passed. Workspace bootstrap regression also passed.
+- Candidate package assertion and toolchain smoke passed.
+- Source/dev Electron PTY smoke passed.
+- Packaged Workspace smoke passed all 12 receipt checks, including Git, PTY,
+  every CLI, scheduling, managed Pi structured output/compaction and the actual
+  CLI side effect. A second run from a path containing spaces and Chinese
+  characters passed toolchain and all 12 checks; its temporary copy was cleaned.
+- Packaged trading-mode smoke: lite -> readonly -> lite starts and stops
+  archived UTA against isolated data with no configured broker accounts.
 - Archived Connector starts, serves healthy with no adapters, and shuts down
   against a disposable home.
-
 - Real candidate window was inspected through the native UI; Initialize Ask
   Alice created the durable Chat Workspace and reached the task composer.
+  The held preview uses a temporary business-data home; this does not imply
+  isolation of Electron's separate userData profile.
 
-Windows native package/toolchain and N-1 acceptance is running at
-https://github.com/TraderAlice/OpenAlice/actions/runs/34191057511
-against implementation commit `70ca7064`; preflight passed. Signing,
-notarization and installer publication were not exercised.
+## Native Windows evidence
 
+[Desktop package smoke run 34194348097](https://github.com/TraderAlice/OpenAlice/actions/runs/34194348097)
+passed against implementation commit `be9b5275`. Preflight, Windows Broker Pack
+acceptance and Windows package acceptance all succeeded.
 
-## Windows verification follow-up
+The package job passed native inspector tests, build, Guardian takeover and
+existing-owner checks, package assertions, toolchain smoke, packaged Workspace
+acceptance and desktop previous-version state upgrade. Workspace receipt checks
+were 12/12 true (25,336 ms).
 
-Run 34191057511 generated the Windows ASAR package successfully after source
-Guardian/PTY and existing-owner acceptance. Its package assertion failed before
-runtime acceptance: `@electron/asar` looks up nested directories using the
-host path separator, while the assertion supplied slash-separated manifest
-paths. Normalize those queries before `statFile`; the existing archive fixture
-spec exercises nested entries and now runs on native hosts before the expensive
-build. This is a verifier correction, not evidence of a successful Windows
-Workspace or upgrade. A new native run must complete those gates.
-
-The macOS candidate also passed toolchain and all 12 Workspace receipt checks
-from a path containing both spaces and Chinese characters; its temporary copy
-was cleaned via the package-artifact ownership helper. The held preview uses a
-temporary business-data home and contains a manually initialized Chat Workspace.
-
-
-Run 34191866368 passed the native inspector fixtures and rebuilt the Windows
-package, then the payload check rejected the `default` directory entry before
-examining its contents. Empty parent entries left by resource exclusion are
-valid ASAR structure; inspect leaf files for duplication instead. Fixtures now
-include empty external-resource directories and separately reject a duplicated
-resource file (18 focused tests pass). Windows runtime acceptance remains open
-until the updated verifier reaches and passes it.
-
-
-Run 34192586050 reached the leaf-file check and exposed a real Windows duplicate:
-`default/alice-harness.json`. The underlying builder behavior was reproduced
-locally with its actual `doMergeConfigs` and `getMainFileMatchers`: the preexisting
-bare-string `win.files` exclusion becomes a separate default all-files matcher
-beside the normalized global whitelist. It admitted source, docs and vendor
-resources as well as app code. Use a FileSet for the platform exclusion instead.
-The real builder regression now checks macOS and Windows allowlists plus the
-platform-specific dugite binary exclusion (20 focused tests pass). This fixes
-the selection boundary rather than weakening the duplicate-payload assertion.
-
-
-Run 34193513989 still detected the duplicate. The initial builder regression
-covered matcher construction but missed AppFileWalker's later implicit `**/*`
-for a pure-exclusion FileSet. Extending the test to instantiate AppFileWalker
-reproduced the failure locally (1 failed, 9 passed), and adding a positive
-`package.json` anchor to the Windows FileSet made it pass (20 targeted tests).
-The real copy-stage filter now retains app entries and excludes source/docs,
-external resources, and the Windows dugite binary payload. The previous claim
-that FileSet form alone was sufficient is superseded by this positive anchor.
+The desktop upgrade receipt used the published `v0.91.1-beta.1` application and
+candidate `0.91.1` as an unpacked package. All 11 checks passed: previous
+Workspace and metadata preservation, browser-state preservation, post-upgrade
+writes, and persistence of both old/new state after candidate restart. This
+verifies application state continuity, not signed NSIS installer replacement.
