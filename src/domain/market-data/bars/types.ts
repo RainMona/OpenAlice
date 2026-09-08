@@ -1,3 +1,4 @@
+import type { BarQuality } from './quality.js'
 import type { BarFreshness } from './freshness.js'
 /**
  * Federated bar layer — types.
@@ -70,6 +71,7 @@ export type BarCapability = 'free' | 'delayed' | 'subscription' | 'iex' | 'realt
 
 /** Data-source metadata — structurally a superset of `DataSourceMeta`. */
 export interface BarMeta {
+  quality?: BarQuality
   freshness?: BarFreshness
   symbol: string
   from: string

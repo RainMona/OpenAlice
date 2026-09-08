@@ -246,3 +246,14 @@ otherwise `unknown`; `basis` distinguishes this heuristic from historical
 requests, empty results and insufficient evidence. `estimatedSeconds` remains
 null until actual latency evidence is available. The explanation travels with
 the CLI JSON; neither fresh timestamps nor `realtime` capability certify latency.
+
+### Incomplete bar diagnostics
+
+`meta.quality` reports inspected and excluded row counts within the fetched date
+window, before count/ceiling selection, plus the latest excluded record and its
+invalid OHLC fields. Null, non-number and non-finite OHLC values are excluded;
+zero and negative prices remain valid. Yahoo's nullable provider models preserve
+incomplete rows until this boundary so a missing latest close is observable.
+The chart displays exclusions separately from freshness; neither CLI nor UI
+substitutes a quote or switches sources to manufacture a complete candle.
+Diagnostics describe rows reaching the bar service, not invisible upstream gaps.

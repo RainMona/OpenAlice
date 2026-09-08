@@ -250,3 +250,12 @@ it('switches to a usable minute window from a stale workspace route', async () =
   expect(screen.getByRole('button', { name: '1M' }).getAttribute('aria-pressed')).toBe('true')
   expect(screen.getByTestId('route').textContent).toBe('/market/equity/AAPL')
 })
+
+it('explains a newer rejected candle without substituting it into the chart', async () => {
+  const data = response('AAPL', 'yfinance|AAPL')
+  data.meta!.quality = { scope: 'fetched_window_before_count', inspectedRows: 2, excludedRows: 1, latestExcludedRecordAt: '2026-07-18', latestExcludedFields: ['close'], reason: 'missing_or_non_finite_ohlc' }
+  mocks.bars.mockResolvedValue(data)
+  render(<MemoryRouter><KlinePanel selection={{ symbol: 'AAPL', assetClass: 'equity' }} source="yfinance|AAPL" /></MemoryRouter>)
+  expect((await screen.findByRole('status')).textContent).toContain('2026-07-18 (close missing or invalid)')
+  expect(screen.getByText('Latest record: 2026-07-17')).toBeTruthy()
+})

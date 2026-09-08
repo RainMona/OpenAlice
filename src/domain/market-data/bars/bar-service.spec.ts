@@ -424,3 +424,12 @@ describe('real-use bar window regressions', () => {
     expect(getHistorical.mock.calls[0]).toEqual([{ aliceId: 'test|AAPL' }, expect.objectContaining({ end: new Date('2024-01-02T23:59:59.999Z') })])
   })
 })
+
+it('explains excluded OHLC rows before count selection and respects the requested window', async () => {
+  const service = createBarService(makeDeps())
+  const result = await service.getBars({ symbol: 'AAPL', assetClass: 'equity' }, { interval: '1d', count: 1 })
+  expect(result.bars).toHaveLength(1)
+  expect(result.meta.quality).toMatchObject({ inspectedRows: 4, excludedRows: 1, latestExcludedRecordAt: '2024-01-04', latestExcludedFields: ['open', 'close'] })
+  const historical = await service.getBars({ symbol: 'AAPL', assetClass: 'equity' }, { interval: '1d', end: '2024-01-03' })
+  expect(historical.meta.quality?.excludedRows).toBe(0)
+})

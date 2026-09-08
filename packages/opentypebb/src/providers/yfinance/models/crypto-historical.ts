@@ -50,6 +50,7 @@ export class YFinanceCryptoHistoricalFetcher extends Fetcher {
     const results = await Promise.allSettled(
       yahooTickers.map(async (sym) => {
         return getHistoricalData(sym, {
+          preserveIncomplete: true,
           startDate: query.start_date,
           endDate: query.end_date,
           interval,
