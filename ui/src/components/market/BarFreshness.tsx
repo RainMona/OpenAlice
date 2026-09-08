@@ -19,7 +19,7 @@ export function BarFreshness({ meta }: { meta: BarMeta }) {
   const explanation = [
     'Time since the latest bar timestamp is not measured feed delay. Bar intervals, market closures and publication schedules affect this gap.',
     freshness?.fetchedAt ? `Fetched: ${freshness.fetchedAt}` : null,
-    meta.barCapability === 'delayed' ? 'Source declares delayed data; exact delay is not provided.' : null,
+    freshness?.delay?.explanation ?? (meta.barCapability === 'delayed' ? 'OpenAlice classifies this source as potentially delayed; actual delay is unknown.' : null),
     freshness?.timestampKind === 'date' ? 'Daily record: intraday delay cannot be inferred.' : null,
   ].filter(Boolean).join(' ')
   return <Tooltip>

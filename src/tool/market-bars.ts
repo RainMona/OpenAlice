@@ -6,7 +6,7 @@ import type { BarService } from '../domain/market-data/bars/types.js'
 export function createMarketBarsTools({ barService }: { barService: BarService }) {
   return {
     getMarketBars: tool({
-      description: 'Read normalized OHLCV bars with source and window metadata. Use the returned bars in local Python, JavaScript or other pipelines. barId selects an explicit source; symbol plus assetClass uses the configured vendor. No calculation is required.',
+      description: 'Read normalized OHLCV bars with source, returned-window timestamps and freshness metadata. freshness.delay describes possible delay and its basis; recordAgeSeconds is not measured feed latency. Use the returned bars in local Python, JavaScript or other pipelines. barId selects an explicit source; symbol plus assetClass uses the configured vendor. No calculation is required.',
       inputSchema: z.object({
         barId: z.string().min(1).optional().describe('Explicit sourceId|nativeSymbol from market search-bars'),
         symbol: z.string().min(1).optional(),
