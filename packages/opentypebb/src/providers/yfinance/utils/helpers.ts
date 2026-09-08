@@ -285,6 +285,7 @@ export async function getHistoricalData(
     startDate?: string | null
     endDate?: string | null
     interval?: string
+    extendedHours?: boolean
   } = {},
 ): Promise<Record<string, unknown>[]> {
   const yf = getYF()
@@ -294,14 +295,17 @@ export async function getHistoricalData(
     ? new Date(options.startDate)
     : new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
 
-  const period2 = options.endDate
-    ? new Date(options.endDate)
-    : new Date()
+  // Public date bounds include the entire requested day; Yahoo period2 is
+  // exclusive. Never request a future instant for today's/live bars.
+  const end = options.endDate ? new Date(options.endDate) : new Date()
+  if (options.endDate && /^\d{4}-\d{2}-\d{2}$/.test(options.endDate)) end.setUTCDate(end.getUTCDate() + 1)
+  const period2 = new Date(Math.min(end.getTime(), Date.now()))
 
   const chartResult = await withRetry(() => yf.chart(symbol, {
     period1,
     period2,
     interval: interval as any,
+    includePrePost: options.extendedHours ?? false,
   })).catch((err: unknown) => {
     // A failed K-line fetch is almost always Yahoo throttling / blocking the
     // unofficial client (HTTP 429 / crumb auth), NOT a symbol with no history.
@@ -320,13 +324,25 @@ export async function getHistoricalData(
 
   const isIntraday = ['1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h'].includes(interval)
 
+  // Yahoo appends a live price tick after the last intraday candle. It is
+  // flat, zero-volume, stamped at regularMarketTime and inside that candle.
+  // Returning it as another bar changes count, indicators and chart spacing.
+  const quotes = [...chartResult.quotes]
+  const last = quotes.at(-1)
+  const previous = quotes.at(-2)
+  const intervalMs = interval.endsWith('h') ? Number.parseInt(interval) * 3600000 : Number.parseInt(interval) * 60000
+  if (isIntraday && last && previous && last.volume === 0 && last.open === last.high && last.high === last.low && last.low === last.close) {
+    const time = new Date(last.date).getTime()
+    const gap = time - new Date(previous.date).getTime()
+    if (time === new Date(chartResult.meta?.regularMarketTime).getTime() && gap > 0 && gap < intervalMs) quotes.pop()
+  }
   const records: Record<string, unknown>[] = []
-  for (const q of chartResult.quotes) {
+  for (const q of quotes) {
     if (q.open == null || q.open <= 0) continue
 
     const date = q.date instanceof Date ? q.date : new Date(q.date as any)
     const dateStr = isIntraday
-      ? date.toISOString().replace('T', ' ').slice(0, 19)
+      ? date.toISOString()
       : date.toISOString().slice(0, 10)
 
     records.push({

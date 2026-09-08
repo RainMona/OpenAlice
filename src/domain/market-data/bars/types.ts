@@ -123,7 +123,7 @@ export interface GetBarsOpts {
   count?: number
   /** Explicit lower bound (YYYY-MM-DD). */
   start?: string
-  /** Explicit upper bound (YYYY-MM-DD); also the count anchor. */
+  /** Inclusive upper calendar-day bound (YYYY-MM-DD); also the count anchor. */
   end?: string
   /** Point-in-time anchor for `count` (alias of `end`; default now). */
   asOf?: string

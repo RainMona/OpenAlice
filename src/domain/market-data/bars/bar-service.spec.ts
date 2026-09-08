@@ -403,3 +403,24 @@ describe('raw bar contract', () => {
     await expect(createBarService(makeDeps()).getBars({ symbol: 'gold', assetClass: 'commodity' }, { interval: '1h' })).rejects.toThrow('only 1d')
   })
 })
+
+describe('real-use bar window regressions', () => {
+  it('does not ask for months of data for twenty five-minute candles', async () => {
+    const deps = makeDeps()
+    await createBarService(deps).getBars({ barId: 'yfinance|AAPL', assetClass: 'equity' }, { interval: '5m', count: 20 })
+    const call = vi.mocked(deps.equityClient.getHistorical).mock.calls[0][0]
+    expect(Date.now() - Date.parse(call.start_date as string)).toBeLessThan(12 * 86400000)
+  })
+  it('explains unsupported 4h instead of leaking enum errors or returning daily data', async () => {
+    for (const source of ['yfinance', 'eastmoney', 'twse']) {
+      await expect(createBarService(makeDeps()).getBars({ barId: `${source}|AAPL`, assetClass: 'equity' }, { interval: '4h' })).rejects.toThrow('does not supply 4h')
+    }
+  })
+  it('preserves the full broker end day, filters over-returned bars and keeps midnight timestamps', async () => {
+    const getHistorical = vi.fn(async () => ['2024-01-01T23:00:00Z', '2024-01-02T00:00:00Z', '2024-01-02T23:00:00Z', '2024-01-03T00:00:00Z'].map(timestamp => ({ timestamp, open: '1', high: '2', low: '0', close: '1', volume: '10' })) as unknown as Bar[])
+    const svc = createBarService(makeDeps({ utaManager: { has: async () => true, get: async () => ({ getHistorical }), searchContracts: async () => [] } }))
+    const result = await svc.getBars({ barId: 'test|AAPL' }, { interval: '1h', start: '2024-01-02', asOf: '2024-01-02' })
+    expect(result.bars.map(b => b.date)).toEqual(['2024-01-02T00:00:00.000Z', '2024-01-02T23:00:00.000Z'])
+    expect(getHistorical.mock.calls[0]).toEqual([{ aliceId: 'test|AAPL' }, expect.objectContaining({ end: new Date('2024-01-02T23:59:59.999Z') })])
+  })
+})

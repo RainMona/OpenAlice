@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   createChart,
   CandlestickSeries,
@@ -53,8 +53,9 @@ function startDateFromToday(days: number): string {
 }
 
 function toUTCTimestamp(s: string): UTCTimestamp {
-  // Daily bars use `YYYY-MM-DD`; intraday uses `YYYY-MM-DD HH:MM:SS`.
-  const iso = s.includes(' ') ? s.replace(' ', 'T') + 'Z' : `${s}T00:00:00Z`
+  // Calendar dates and timezone-bearing intraday instants are both valid.
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(s) ? `${s}T00:00:00Z`
+    : s.includes(' ') ? s.replace(' ', 'T') + 'Z' : s
   return Math.floor(new Date(iso).getTime() / 1000) as UTCTimestamp
 }
 
@@ -81,7 +82,8 @@ interface Props {
 export function KlinePanel({ selection, source, onSnapshot }: Props) {
   const effectiveTheme = useEffectiveTheme()
   const effectivePalette = useEffectivePalette()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const interval = parseInterval(searchParams.get('interval'))
   const tf = parseTimeframe(searchParams.get('range'))
   // The provider picked at search time (a barId), if any — opens the chart on
@@ -93,21 +95,30 @@ export function KlinePanel({ selection, source, onSnapshot }: Props) {
 
   // Local setter named `selectInterval` rather than `setInterval` so it
   // doesn't shadow the global timer function we use for polling below.
+  const updateChartQuery = (update: (next: URLSearchParams) => void) => {
+    if (!selection) return
+    const next = new URLSearchParams(searchParams)
+    if (selectedBarId) next.set('source', selectedBarId)
+    else next.delete('source')
+    update(next)
+    // Focused market tabs may project their URL without updating Router state.
+    // Explicitly address this asset, never the router's previously visited page.
+    navigate({ pathname: `/market/${selection.assetClass}/${encodeURIComponent(selection.symbol)}`, search: next.toString() }, { replace: true })
+  }
   const selectInterval = (iv: KlineInterval) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev)
+    updateChartQuery((next) => {
       if (iv === DEFAULT_INTERVAL) next.delete('interval')
       else next.set('interval', iv)
-      return next
-    }, { replace: true })
+      const days = daysForTimeframe(tf)
+      if (iv === '1m' && (days == null || days > 5)) next.set('range', '5D')
+      if (iv === '5m' && (days == null || days > 30)) next.set('range', '1M')
+    })
   }
   const setTf = (t: KlineTimeframe) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev)
+    updateChartQuery((next) => {
       if (t === DEFAULT_RANGE) next.delete('range')
       else next.set('range', t)
-      return next
-    }, { replace: true })
+    })
   }
 
   const [bars, setBars] = useState<HistoricalBar[] | null>(null)
