@@ -27,7 +27,7 @@ depend on it. No user-state migration or release publication is in scope.
 - [x] Verify Electron Node-mode ASAR ESM support with a disposable archive.
 - [x] Capture an unsigned baseline package and measure physical files/bytes.
 - [x] Implement split resources, archive assertions and regression coverage.
-- [ ] Run focused tests, owning typechecks and full hermetic suite.
+- [x] Run focused tests, owning typechecks and full hermetic suite.
 - [x] Exercise real dev Electron PTY and packaged Workspace/toolchain paths.
 - [x] Compare package files/bytes and retain an isolated candidate for review.
 - [ ] Verify native Windows upgrade/toolchain acceptance before promotion.
@@ -62,8 +62,7 @@ resolver environment variable is needed.
 Passed locally:
 - `pnpm electron:build`, root/desktop/UI typechecks.
 - Focused package, metadata hook and Workspace bootstrap specs (28 tests).
-- Initial complete hermetic suite: 753 files, 6,728 passed, 3 skipped; a final
-  full run including the bootstrap regression and hook specs is in progress.
+- Final complete hermetic suite: 754 files, 6,731 passed, 3 skipped.
 - `electron:assert-package` and `electron:smoke-toolchain` on the candidate.
 - `electron:smoke:pty --skip-build` in source/dev Electron.
 - `electron:smoke:workspace --skip-build --skip-pack --package-root ...`:
@@ -74,5 +73,10 @@ Passed locally:
 - Archived Connector starts, serves healthy with no adapters, and shuts down
   against a disposable home.
 
-Windows native package/toolchain and N-1 acceptance remain open; signing,
+- Real candidate window was inspected through the native UI; Initialize Ask
+  Alice created the durable Chat Workspace and reached the task composer.
+
+Windows native package/toolchain and N-1 acceptance is running at
+https://github.com/TraderAlice/OpenAlice/actions/runs/34191057511
+against implementation commit `70ca7064`; preflight passed. Signing,
 notarization and installer publication were not exercised.
