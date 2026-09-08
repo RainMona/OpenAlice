@@ -3,7 +3,7 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { fetchJson } from '../api/client'
 import { applyTemplateUpgrade, type TemplateUpgradePlan } from '../components/workspace/api'
-import { useProjectInjection, injectionStatus, type InjectionWorkspace } from './useProjectInjection'
+import { useProjectInjection, useSkillProjection, injectionStatus, type InjectionWorkspace } from './useProjectInjection'
 vi.mock('../api/client', () => ({ fetchJson: vi.fn() }))
 vi.mock('../components/workspace/api', () => ({ applyTemplateUpgrade: vi.fn() }))
 afterEach(() => { cleanup(); vi.resetAllMocks() })
@@ -30,4 +30,16 @@ it('does not apply a retained catalog after a refresh failure', async () => {
   await waitFor(() => expect(result.current.error).toBe('offline'))
   await act(async () => { await result.current.updateReady() })
   expect(applyTemplateUpgrade).not.toHaveBeenCalled()
+})
+
+it('loads file comparisons only on demand and clears old content on selection or error', async () => {
+  vi.mocked(fetchJson).mockResolvedValueOnce({ name: 'alice', files: [] }).mockRejectedValueOnce(new Error('cannot read copy'))
+  const { result, rerender } = renderHook(({ enabled, skill }) => useSkillProjection('ws-1', skill, enabled), { initialProps: { enabled: false, skill: 'alice' } })
+  expect(fetchJson).not.toHaveBeenCalled()
+  rerender({ enabled: true, skill: 'alice' })
+  await waitFor(() => expect(result.current.data?.name).toBe('alice'))
+  rerender({ enabled: true, skill: 'traderhub' })
+  await waitFor(() => expect(result.current.error).toBe('cannot read copy'))
+  expect(result.current.data).toBeNull()
+  expect(fetchJson).toHaveBeenLastCalledWith('/api/workspaces/ws-1/alice-harness/skills/traderhub', expect.objectContaining({ signal: expect.any(AbortSignal) }))
 })

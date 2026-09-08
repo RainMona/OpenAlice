@@ -122,7 +122,13 @@ export interface TemplateUpgradePlan {
   };
 }
 
+export interface SkillProjectionRequest {
+  readonly skill: typeof ALICE_HARNESS_SKILLS[number];
+  readonly action: 'install' | 'update' | 'remove' | 'restore';
+}
+
 export interface ApplyTemplateUpgradeInput {
+  readonly projection?: SkillProjectionRequest;
   readonly planDigest: string;
   readonly resolutions?: Readonly<Record<string, TemplateUpgradeResolution>>;
 }
@@ -208,12 +214,54 @@ export class TemplateUpgradeManager {
     for (const workspace of this.opts.registry.list()) {
       try {
         const plan = await this.plan(workspace.id);
-        workspaces.push({ id: workspace.id, name: workspace.tag, template: workspace.template, plan });
+        workspaces.push({ id: workspace.id, name: workspace.tag, template: workspace.template, plan: { ...plan, files: [] }, projections: await this.skillProjections(workspace, skills) });
       } catch (error) {
         workspaces.push({ id: workspace.id, name: workspace.tag, template: workspace.template, error: (error as Error).message });
       }
     }
     return { version, skills, workspaces, commands: Object.fromEntries(Object.values(CLI_EXPORTS).filter((exp) => exp.binary !== 'alice-workspace').map((exp) => [exp.binary, Object.fromEntries(Object.entries(exp.commands).map(([group, verbs]) => [group, Object.keys(verbs)]))])) };
+  }
+
+  async skillProjection(workspaceId: string, skill: string) {
+    const workspace = this.opts.registry.get(workspaceId);
+    if (!workspace) throw new TemplateUpgradeError('not_found', 'Workspace not found');
+    const sources = (await aliceHarnessSkillCatalog()).filter((source) => source.name === skill);
+    if (!sources.length) throw new TemplateUpgradeError('not_found', 'Project Skill not found');
+    return (await this.skillProjections(workspace, sources, true))[0]!;
+  }
+
+  private async skillProjections(workspace: WorkspaceMeta, sources: Awaited<ReturnType<typeof aliceHarnessSkillCatalog>>, includeContent = false) {
+    const local = await readManagedWorkspaceSnapshot(workspace.dir);
+    const stored = await readBaseline(workspace.dir, this.paths);
+    const baseline = stored?.files ?? await readLegacyRootBaseline(workspace.dir);
+    const config = await readAliceHarnessConfig(workspace.dir);
+    const defaults = this.opts.templates.get(workspace.template ?? '')?.injectTools === true;
+    return Promise.all(sources.map(async (source) => {
+      const prototype = Object.fromEntries(source.files.map((file) => [file.path, fileContent(file.content)]));
+      const canonical = Object.fromEntries(Object.entries(local).filter(([path]) => path.startsWith(`.agents/skills/${source.name}/`)).map(([path, value]) => [path.slice(`.agents/skills/${source.name}/`.length), value]));
+      const mirror = Object.fromEntries(Object.entries(local).filter(([path]) => path.startsWith(`.claude/skills/${source.name}/`)).map(([path, value]) => [path.slice(`.claude/skills/${source.name}/`.length), value]));
+      const paths = [...new Set([
+        ...Object.keys(local).filter((path) => isProjectionPath(path, source.name)),
+        ...source.files.flatMap((file) => ['.agents', '.claude'].map((root) => `${root}/skills/${source.name}/${file.path}`)),
+      ])].sort();
+      const inspected = Object.fromEntries(await Promise.all(paths.map(async (path) => [path, await readLocalFile(workspace.dir, path)] as const)));
+      const files = paths.map((path) => {
+        const current = inspected[path] ?? missingFile();
+        const original = path.startsWith('.pi/') ? missingFile() : prototype[path.split('/').slice(3).join('/')] ?? missingFile();
+        return { path, ...(includeContent ? { currentPreview: preview(current).value, sourcePreview: preview(original).value } : {}),
+          truncated: preview(current).truncated || preview(original).truncated,
+          differs: !sameFile(current, original), unverified: current.kind === 'other' };
+      });
+      const present = Object.keys(inspected).filter((path) => inspected[path]?.kind !== 'missing');
+      return {
+        name: source.name, enabled: config.skills?.[source.name] ?? (defaults || source.name === 'self-scheduling'),
+        installed: present.length > 0, canonicalPresent: Object.keys(canonical).length > 0,
+        mirrorDiverged: digestPlan(canonical) !== digestPlan(mirror),
+        customized: paths.some((path) => !sameFile(inspected[path] ?? missingFile(), baseline[path] ?? missingFile())),
+        sourceChanged: [...new Set([...Object.keys(baseline).filter((path) => path.startsWith(`.agents/skills/${source.name}/`)).map((path) => path.split('/').slice(3).join('/')), ...Object.keys(prototype)])].some((path) => !sameFile(baseline[`.agents/skills/${source.name}/${path}`] ?? missingFile(), prototype[path] ?? missingFile())),
+        files,
+      };
+    }));
   }
 
   async harnessStatus(workspaceId: string) {
@@ -250,15 +298,15 @@ export class TemplateUpgradeManager {
     return this.opts.aliceHarness ? undefined : workspace.spawnedFromVersion;
   }
 
-  async plan(workspaceId: string): Promise<TemplateUpgradePlan> {
+  async plan(workspaceId: string, projection?: SkillProjectionRequest): Promise<TemplateUpgradePlan> {
     const lease = await this.operationGuard.acquireWhenAvailable(workspaceId, 'template-upgrade-preview');
     try {
       const workspace = this.opts.registry.get(workspaceId);
       if (!workspace) throw new TemplateUpgradeError('not_found', 'Workspace not found');
       const template = await this.resolveTemplate(workspace);
       await this.recoverWorkspace(workspace);
-      const incoming = await this.materializeTemplate(template, workspace.id);
-      return this.buildPlan(workspace, template, incoming);
+      const incoming = await this.materializeTemplate(template, workspace.id, projection);
+      return this.buildPlan(workspace, template, incoming, projection);
     } finally {
       lease.release();
     }
@@ -295,8 +343,8 @@ export class TemplateUpgradeManager {
     // Materialize once: the exact Incoming snapshot included in the reviewed
     // digest is also the one written to disk. Regenerating it after validation
     // would leave a small but real time-of-check/time-of-use race.
-    const incoming = await this.materializeTemplate(template, workspace.id);
-    const plan = await this.buildPlan(workspace, template, incoming);
+    const incoming = await this.materializeTemplate(template, workspace.id, input.projection);
+    const plan = await this.buildPlan(workspace, template, incoming, input.projection);
     if (plan.blocked) {
       const code = plan.blockers.includes('active_sessions') ? 'busy' : 'staged_changes';
       throw new TemplateUpgradeError(code, blockerMessage(plan.blockers), plan);
@@ -308,7 +356,7 @@ export class TemplateUpgradeManager {
         plan,
       );
     }
-    if (plan.fromVersion === plan.toVersion && (!this.opts.aliceHarness || !plan.files.some((file) => file.status === 'ready' || file.status === 'conflict'))) {
+    if ((input.projection && !plan.files.some((file) => file.status === 'ready' || file.status === 'conflict')) || plan.fromVersion === plan.toVersion && (!this.opts.aliceHarness || !plan.files.some((file) => file.status === 'ready' || file.status === 'conflict'))) {
       throw new TemplateUpgradeError('already_current', 'Workspace is already on this template version', plan);
     }
 
@@ -354,7 +402,7 @@ export class TemplateUpgradeManager {
       workspaceId: workspace.id,
       template: template.name,
       fromVersion: plan.fromVersion,
-      toVersion: plan.toVersion,
+      toVersion: input.projection ? plan.fromVersion : plan.toVersion,
       planDigest: plan.planDigest,
       touchedPaths: changedPaths,
       preparedAt: new Date().toISOString(),
@@ -379,7 +427,7 @@ export class TemplateUpgradeManager {
         await runGit(workspace.dir, ['add', '-A', '--', ...changedPaths]);
       }
       const message = [
-        `template(${template.name}): upgrade ${plan.fromVersion} -> ${plan.toVersion}`,
+        input.projection ? `skill(${input.projection.skill}): ${input.projection.action} Project files` : `template(${template.name}): upgrade ${plan.fromVersion} -> ${plan.toVersion}`,
         '',
         `OpenAlice-Template-Upgrade: ${plan.planDigest}`,
       ].join('\n');
@@ -389,7 +437,7 @@ export class TemplateUpgradeManager {
         'commit', '--allow-empty', '-q', '-m', message,
       ]);
       const commit = (await runGit(workspace.dir, ['rev-parse', 'HEAD'])).trim();
-      await persistAppliedState(workspace.dir, template, incoming, 'upgrade', commit, this.paths);
+      await persistAppliedState(workspace.dir, input.projection ? { ...template, version: plan.fromVersion } : template, incoming, 'upgrade', commit, this.paths);
       await rm(join(workspace.dir, this.paths.transaction), { recursive: true, force: true });
       this.opts.logger.info('template_upgrade.applied', {
         workspaceId: workspace.id,
@@ -422,6 +470,7 @@ export class TemplateUpgradeManager {
     workspace: WorkspaceMeta,
     template: TemplateMeta,
     incoming: Snapshot,
+    projection?: SkillProjectionRequest,
   ): Promise<TemplateUpgradePlan> {
     const state = await readState(workspace.dir, this.paths);
     const stored = state?.template === template.name ? await readBaseline(workspace.dir, this.paths) : null;
@@ -439,6 +488,7 @@ export class TemplateUpgradeManager {
       ...Object.keys(incoming),
     ])]
       .filter((path) => isManagedTemplatePath(path) && (this.opts.aliceHarness ? (isAliceHarnessSkillPath(path) || path === ALICE_HARNESS_CONFIG_PATH) : (!isAliceHarnessSkillPath(path) && path !== ALICE_HARNESS_CONFIG_PATH)))
+      .filter((path) => !projection || path === ALICE_HARNESS_CONFIG_PATH || isProjectionPath(path, projection.skill))
       .sort();
     const localEntries = await Promise.all(paths.map((path) => readLocalFile(workspace.dir, path)));
     const files = paths.map((path, index) => classifyFile(
@@ -449,10 +499,23 @@ export class TemplateUpgradeManager {
     ));
     if (this.opts.aliceHarness) {
       const policy = await readAliceHarnessConfig(workspace.dir);
-      for (const file of files) {
+      for (const [index, file] of files.entries()) {
+        const local = localEntries[index] ?? missingFile();
+        const next = incoming[file.path] ?? missingFile();
+        if (projection && file.status !== 'unchanged') {
+          const regular = local.kind !== 'other' && next.kind !== 'other';
+          const replace = file.path === ALICE_HARNESS_CONFIG_PATH
+            || projection.action === 'restore'
+            || (projection.action === 'install' && local.kind === 'missing');
+          if (replace) Object.assign(file, {
+            status: regular ? 'ready' : 'conflict', operation: operationFor(local, next),
+            canUseTemplate: regular,
+            note: regular ? 'Apply the reviewed Project projection.' : 'Repair this non-regular entry before replacing it.',
+          });
+        }
         const skill = file.path.split('/')[2] as typeof ALICE_HARNESS_SKILLS[number];
-        if (isAliceHarnessSkillPath(file.path) && policy.skills?.[skill] === false && file.status === 'preserved') {
-          Object.assign(file, { status: 'conflict', operation: 'remove', note: 'This Skill is excluded, but contains local files. Review before removing.' });
+        if (isAliceHarnessSkillPath(file.path) && (projection ? projection.action === 'remove' : policy.skills?.[skill] === false) && file.status === 'preserved') {
+          Object.assign(file, { status: 'conflict', operation: 'remove', canUseTemplate: local.kind !== 'other' && next.kind !== 'other', note: 'This Skill is excluded, but contains local files. Review before removing.' });
         }
       }
     }
@@ -473,6 +536,7 @@ export class TemplateUpgradeManager {
       fromVersion,
       toVersion: template.version,
       baseline,
+      ...(projection ? { projection } : {}),
       ...(this.opts.aliceHarness ? { config: await readAliceHarnessConfig(workspace.dir) } : {}),
       incoming,
       local: Object.fromEntries(paths.map((path, index) => [path, localEntries[index] ?? missingFile()])),
@@ -505,11 +569,16 @@ export class TemplateUpgradeManager {
     return { ...template, name: 'alice-harness', version: await aliceHarnessSourceVersion(), upgradeStrategy: 'managed-context' };
   }
 
-  private async materializeTemplate(template: TemplateMeta, workspaceId: string): Promise<Snapshot> {
+  private async materializeTemplate(template: TemplateMeta, workspaceId: string, projection?: SkillProjectionRequest): Promise<Snapshot> {
+    if (projection && (!this.opts.aliceHarness || !ALICE_HARNESS_SKILLS.includes(projection.skill)
+      || !['install', 'update', 'remove', 'restore'].includes(projection.action))) {
+      throw new TemplateUpgradeError('unsupported', 'Unknown Project Skill operation');
+    }
     if (this.opts.materializeTemplate) return this.opts.materializeTemplate(template, workspaceId);
     if (!this.opts.aliceHarness) return materializeTemplateSnapshot(template, workspaceId);
     const workspace = this.opts.registry.get(workspaceId)!;
-    const config = await readAliceHarnessConfig(workspace.dir);
+    const previousConfig = await readAliceHarnessConfig(workspace.dir);
+    const config = projection ? { ...previousConfig, skills: { ...previousConfig.skills, [projection.skill]: projection.action !== 'remove' } } : previousConfig;
     const dir = await mkdtemp(join(tmpdir(), 'alice-harness-'));
     try {
       await injectAliceHarnessSkills(dir, template.injectTools, config);
@@ -517,10 +586,19 @@ export class TemplateUpgradeManager {
       // Adopt legacy Workspaces through the same reviewed, recoverable transaction.
       // Existing policy bytes are Workspace-owned and are never regenerated.
       const existingConfig = await readLocalFile(workspace.dir, ALICE_HARNESS_CONFIG_PATH);
-      if (existingConfig.kind === 'missing') {
+      if (existingConfig.kind === 'missing' || (projection && existingConfig.kind === 'file')) {
         await atomicWriteJson(join(dir, ALICE_HARNESS_CONFIG_PATH), config);
         snapshot[ALICE_HARNESS_CONFIG_PATH] = await readLocalFile(dir, ALICE_HARNESS_CONFIG_PATH);
       } else snapshot[ALICE_HARNESS_CONFIG_PATH] = existingConfig;
+      if (projection) {
+        const stored = await readBaseline(workspace.dir, this.paths);
+        const baseline = stored?.files ?? await readLegacyRootBaseline(workspace.dir);
+        const scoped = Object.fromEntries(Object.entries(baseline).filter(([path]) => !isProjectionPath(path, projection.skill)));
+        for (const [path, value] of Object.entries(snapshot)) {
+          if (isProjectionPath(path, projection.skill) || path === ALICE_HARNESS_CONFIG_PATH) scoped[path] = value;
+        }
+        return scoped;
+      }
       return snapshot;
     } finally { await rm(dir, { recursive: true, force: true }); }
   }
@@ -607,6 +685,10 @@ function resolveUpgradeableTemplate(
     );
   }
   return template;
+}
+
+function isProjectionPath(path: string, skill: string): boolean {
+  return MANAGED_TREE_ROOTS.some((root) => path.startsWith(`${root}/${skill}/`));
 }
 
 function classifyFile(

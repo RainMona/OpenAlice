@@ -108,6 +108,7 @@ import {
   AUTO_QUANT_WORKSPACE_TEMPLATE,
   CHAT_WORKSPACE_TEMPLATE,
 } from '../../workspaces/chat-workspace-resolver.js';
+import { ALICE_HARNESS_SKILLS } from '../../workspaces/alice-harness-policy.js';
 import { TemplateUpgradeError } from '../../workspaces/template-upgrade.js';
 import { HarnessSourceUpgradeError } from '../../workspaces/harness-source-upgrade.js';
 import { WorkspaceAbsorbError } from '../../workspaces/workspace-absorb.js';
@@ -1405,6 +1406,11 @@ export function createWorkspaceRoutes(
     catch (error) { return c.json({ error: (error as Error).message }, 500); }
   });
 
+  app.get('/:id/alice-harness/skills/:skill', async (c) => {
+    try { return c.json(await svc.aliceHarnessUpgrades.skillProjection(c.req.param('id'), c.req.param('skill'))); }
+    catch (error) { return c.json({ error: (error as Error).message }, error instanceof TemplateUpgradeError && error.code === 'not_found' ? 404 : 400); }
+  });
+
   app.get('/:id/alice-harness', async (c) => {
     try { return c.json(await svc.aliceHarnessUpgrades.harnessStatus(c.req.param('id'))); }
     catch (error) { return c.json({ error: (error as Error).message }, error instanceof TemplateUpgradeError && error.code === 'not_found' ? 404 : 400); }
@@ -1416,13 +1422,18 @@ export function createWorkspaceRoutes(
     } catch (error) { return c.json({ error: (error as Error).message }, error instanceof TemplateUpgradeError && error.code === 'busy' ? 409 : 400); }
   });
 
+  const projectionSchema = z.object({ skill: z.enum(ALICE_HARNESS_SKILLS), action: z.enum(['install', 'update', 'remove', 'restore']) }).strict();
   for (const [route, manager] of [['template-upgrade', svc.templateUpgrades], ['alice-harness-upgrade', svc.aliceHarnessUpgrades]] as const) {
   app.get(`/:id/${route}`, async (c) => {
     const id = c.req.param('id');
     if (!validId(id)) return c.json({ error: 'not_found' }, 404);
     try {
-      return c.json({ plan: await manager.plan(id) });
+      const requested = c.req.query('skill') || c.req.query('action');
+      const projection = requested ? projectionSchema.parse({ skill: c.req.query('skill'), action: c.req.query('action') }) : undefined;
+      if (projection && route !== 'alice-harness-upgrade') return c.json({ error: 'bad_request' }, 400);
+      return c.json({ plan: await manager.plan(id, projection) });
     } catch (err) {
+      if (err instanceof z.ZodError) return c.json({ error: 'bad_request', message: 'Invalid Skill operation' }, 400);
       if (err instanceof TemplateUpgradeError) {
         const status = err.code === 'not_found' ? 404
           : err.code === 'unsupported' || err.code === 'busy' ? 409
@@ -1449,12 +1460,16 @@ export function createWorkspaceRoutes(
             entry[1] === 'workspace' || entry[1] === 'template'))
       : undefined;
     try {
+      const projection = fields['projection'] ? projectionSchema.parse(fields['projection']) : undefined;
+      if (projection && route !== 'alice-harness-upgrade') return c.json({ error: 'bad_request' }, 400);
       const result = await manager.apply(id, {
+        projection,
         planDigest: fields['planDigest'],
         ...(resolutions ? { resolutions } : {}),
       });
       return c.json({ result, workspace: await svc.publicMeta(svc.registry.get(id)!) });
     } catch (err) {
+      if (err instanceof z.ZodError) return c.json({ error: 'bad_request', message: 'Invalid Skill operation' }, 400);
       if (err instanceof TemplateUpgradeError) {
         const status = err.code === 'not_found' ? 404
           : err.code === 'busy' || err.code === 'staged_changes' || err.code === 'stale_plan'

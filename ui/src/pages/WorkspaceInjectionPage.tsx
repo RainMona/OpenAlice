@@ -1,3 +1,4 @@
+import { SkillProjectionBrowser } from '../components/workspace-capabilities/SkillProjectionBrowser'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { PageHeader } from '../components/PageHeader'
@@ -14,8 +15,6 @@ export function WorkspaceInjectionPage() {
   const state = useProjectInjection()
   const [reviewRevision, setReviewRevision] = useState(0)
   const [review, setReview] = useState<InjectionWorkspace | null>(null)
-  const [source, setSource] = useState<string | null>(null)
-  const skill = state.data?.skills.find((s) => s.name === source)
   const ready = state.data?.workspaces.filter((row) => ['update', 'record'].includes(injectionStatus(row))).length ?? 0
   return <div className="flex min-h-0 flex-1 flex-col">
     <PageHeader title={t('distribution.title')} />
@@ -29,8 +28,9 @@ export function WorkspaceInjectionPage() {
         {!state.data && !state.error && <p role="status">{t('common.loading')}</p>}
         {state.data && <>
           <div className="border-y border-border py-4 text-sm"><span className="text-muted-foreground">{t('distribution.skillsVersion')} </span><code className="break-all">{state.data.version}</code></div>
-          <Tabs defaultValue="workspaces">
-            <TabsList><TabsTrigger value="workspaces">{t('distribution.workspaces')}</TabsTrigger><TabsTrigger value="cli">CLI</TabsTrigger><TabsTrigger value="source">{t('distribution.source')}</TabsTrigger></TabsList>
+          <Tabs defaultValue="skills">
+            <TabsList><TabsTrigger value="skills">{t('skillManager.title')}</TabsTrigger><TabsTrigger value="workspaces">{t('distribution.workspaces')}</TabsTrigger><TabsTrigger value="cli">CLI</TabsTrigger></TabsList>
+            <TabsContent value="skills" className="mt-5"><SkillProjectionBrowser data={state.data} disabled={state.busy || !!state.error} onChange={state.refresh} /></TabsContent>
             <TabsContent value="workspaces" className="mt-5">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><p className="max-w-xl text-xs text-muted-foreground">{t('distribution.batchHint')}</p><Button disabled={state.busy || !!state.error || !ready} onClick={() => void state.updateReady()}>{state.busy ? t('common.loading') : t('distribution.updateReady', { count: ready })}</Button></div>
               {!state.data.workspaces.length && <p>{t('distribution.empty')}</p>}
@@ -44,12 +44,10 @@ export function WorkspaceInjectionPage() {
               </section>)}
             </TabsContent>
             <TabsContent value="cli" className="mt-5"><p className="mb-4 text-sm text-muted-foreground">{t('distribution.cliHint')}</p>{Object.entries(state.data.commands).map(([binary, groups]) => <section className="border-t border-border py-4" key={binary}><h3 className="font-mono font-semibold">{binary}</h3>{Object.entries(groups).map(([group, verbs]) => <details className="py-2" key={group}><summary className="font-mono text-sm">{group} <span className="text-muted-foreground">{verbs.length}</span></summary><div className="mt-2 grid gap-2 pl-4 text-xs sm:grid-cols-2">{verbs.map((verb) => <code key={verb}>{binary} {group} {verb}</code>)}</div></details>)}</section>)}</TabsContent>
-            <TabsContent value="source" className="mt-5"><p className="mb-3 text-xs text-muted-foreground">{t('distribution.sourceHint')}</p>{state.data.skills.map((s) => <div key={s.name} className="flex items-center justify-between border-t border-border py-3"><code>{s.name}</code><Button variant="ghost" onClick={() => setSource(s.name)}>{t('distribution.browse')}</Button></div>)}</TabsContent>
           </Tabs>
         </>}
       </div>
     </SettingsScrollArea>
     <Dialog open={!!review} onOpenChange={(open) => { if (!open) setReview(null) }}><DialogContent className="max-h-[90vh] overflow-auto sm:max-w-4xl" closeLabel={t('common.close')}><DialogTitle>{review?.name}</DialogTitle><DialogDescription>{t('distribution.reviewHint')}</DialogDescription>{review && <><AliceHarnessPanel inProject wsId={review.id} onChange={() => { state.refresh(); setReviewRevision((v) => v + 1) }} /><WorkspaceTemplateUpgradePanel key={`${review.id}:${reviewRevision}`} wsId={review.id} layer="alice-harness" onWorkspaceChanged={state.refresh} onClose={() => setReview(null)} /></>}</DialogContent></Dialog>
-    <Dialog open={!!skill} onOpenChange={(open) => { if (!open) setSource(null) }}><DialogContent className="max-h-[90vh] overflow-auto sm:max-w-3xl" closeLabel={t('common.close')}><DialogTitle>{skill?.name}</DialogTitle><DialogDescription>{t('distribution.sourceHint')}</DialogDescription>{skill?.files.map((file) => <details key={file.path} open={file.path === 'SKILL.md'} className="border-t border-border py-2"><summary className="font-mono text-xs">{file.path}</summary><pre className="mt-3 whitespace-pre-wrap break-words font-mono text-xs leading-relaxed">{file.content}</pre></details>)}</DialogContent></Dialog>
   </div>
 }
