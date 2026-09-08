@@ -158,6 +158,13 @@ export interface BarSourceCandidate {
 
 /** Provenance of the bars currently shown — the explicit "who provided this". */
 export interface BarMeta {
+  freshness?: {
+    fetchedAt: string
+    latestRecordAt: string | null
+    timestampKind: 'instant' | 'date' | 'unknown'
+    recordAgeSeconds: number | null
+    historical: boolean
+  }
   symbol: string
   from: string
   to: string

@@ -138,6 +138,12 @@ export const marketHandlers = [
       source: sourceId === 'alpaca-paper' ? 'uta' : 'vendor', sourceId, barId: barId ?? `${sourceId}|${selected.symbol}`,
       provider: sourceId, barCapability: sourceId === 'alpaca-paper' ? 'iex' : 'delayed',
     }
+    meta.freshness = {
+      fetchedAt: new Date().toISOString(), latestRecordAt: meta.to || null,
+      timestampKind: /T.*Z$/.test(meta.to) ? 'instant' : 'date',
+      recordAgeSeconds: /T.*Z$/.test(meta.to) ? Math.max(0, Math.floor((Date.now() - Date.parse(meta.to)) / 1000)) : null,
+      historical: false,
+    }
     return HttpResponse.json({ results, meta })
   }),
 

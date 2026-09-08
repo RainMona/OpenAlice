@@ -1,6 +1,7 @@
 import { WorkspaceToolCenter } from '../core/workspace-tool-center.js'
 import { registerCliRoutes } from './cli.js'
-import { it, expect } from 'vitest'
+import { it, expect, vi, afterEach } from 'vitest'
+afterEach(() => vi.useRealTimers())
 import { Hono } from 'hono'
 import { serve } from '@hono/node-server'
 import { execFile } from 'node:child_process'
@@ -20,6 +21,8 @@ const exec = promisify(execFile)
 const executable = process.env['OPENALICE_CLI_ACCEPTANCE_EXECUTABLE'] ?? process.execPath
 const entryArgs = process.env['OPENALICE_CLI_ACCEPTANCE_EXECUTABLE'] ? [] : ['packages/cli/bin/openalice.ts']
 it('public Project CLI exports the same bars as the chart, clears inherited Workspace scope and preserves files', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-09-08T08:00:00Z'))
   const home = await mkdtemp(join(tmpdir(), 'oa-project-bars-'))
   const identity = resolveAliceProjectIdentity({ home, env: {} })
   const rows = [{ date: '2024-01-02', open: 1, high: 3, low: 1, close: 2, volume: 100 }]

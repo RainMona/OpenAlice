@@ -223,3 +223,17 @@ secids remain on the bar request; broker discovery receives the security code
 as a heuristic query, not a claimed canonical trading identity. The chart
 displays its forward-adjustment policy beside the source and keeps full candle
 timestamps available on the condensed date-range label.
+
+### Bar record freshness
+
+Bar responses expose `meta.freshness` identically through HTTP and the Project
+CLI: fetch completion time, latest returned record timestamp, timestamp precision,
+record age in seconds (only for explicit timezone-bearing instants), and whether
+the caller supplied a historical anchor. Age is not measured feed latency.
+Date-only, timezone-less and future records have no inferred age. Existing
+`isLatestActual`/`staleTradingDays` are legacy weekday comparisons, not realtime
+guarantees or exchange-calendar checks.
+
+Charts show latest record time separately from fetch time; source-declared
+`delayed` does not imply a known number of delayed minutes. Board refresh labels
+say “Fetched” because successful polling does not establish underlying freshness.

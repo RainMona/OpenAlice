@@ -1,3 +1,4 @@
+import { describeBarFreshness } from './freshness.js'
 /**
  * Federated bar layer — service.
  *
@@ -163,18 +164,18 @@ function tradingDaysBetween(fromISO: string, toISO: string): number {
   return days
 }
 
-/** Freshness contract — did the data actually reach the requested point-in-time?
- *  Anchor = explicit end/asOf, else today. The point is to make a delayed source
- *  that silently stopped a day behind "now" LOUD, not to mask it as current. */
+/** Add record timestamps alongside the legacy weekday comparison. */
 function computeFreshness(
   lastBarDate: string,
   opts: GetBarsOpts,
   now: () => Date,
-): Pick<BarMeta, 'asOf' | 'isLatestActual' | 'staleTradingDays'> {
-  if (!lastBarDate) return {}
-  const anchor = (opts.end ?? opts.asOf ?? now().toISOString().slice(0, 10)).slice(0, 10)
+): Pick<BarMeta, 'asOf' | 'isLatestActual' | 'staleTradingDays' | 'freshness'> {
+  const observed = now()
+  const freshness = describeBarFreshness(lastBarDate, Boolean(opts.end || opts.asOf), observed)
+  if (!lastBarDate) return { freshness }
+  const anchor = (opts.end ?? opts.asOf ?? observed.toISOString().slice(0, 10)).slice(0, 10)
   const gap = tradingDaysBetween(lastBarDate.slice(0, 10), anchor)
-  return { asOf: anchor, isLatestActual: gap === 0, staleTradingDays: gap }
+  return { asOf: anchor, isLatestActual: gap === 0, staleTradingDays: gap, freshness }
 }
 
 /** Sort ascending, cap to MAX_BARS (keep most-recent), then truncate to `count`. */
