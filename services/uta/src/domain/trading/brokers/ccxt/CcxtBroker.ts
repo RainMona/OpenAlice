@@ -1246,9 +1246,9 @@ export class CcxtBroker implements IBroker<CcxtBrokerMeta> {
       throw new BrokerError('EXCHANGE', `${this.exchangeName} does not support the ${params.interval} interval`)
     }
     try {
-      const limit = params.limit == null ? undefined : Math.max(1, Math.floor(params.limit))
+      const limit = Math.min(5000, params.limit == null ? 5000 : Math.max(1, Math.floor(params.limit)))
       const lowerBound = params.start?.getTime()
-      const upperBound = params.end?.getTime() ?? Date.now()
+      const upperBound = Math.min(params.end?.getTime() ?? Date.now(), Date.now())
       // CCXT exchanges return the FIRST `limit` rows at/after `since`. Alice's
       // BarParams contract is the opposite: limit truncates to the MOST RECENT
       // rows in the requested window. Anchor `since` immediately before that
@@ -1263,11 +1263,26 @@ export class CcxtBroker implements IBroker<CcxtBrokerMeta> {
       const since = trailingSince == null
         ? lowerBound
         : Math.max(lowerBound ?? Number.NEGATIVE_INFINITY, trailingSince)
-      const rows = await this.exchange.fetchOHLCV(ccxtSymbol, timeframe, since, queryLimit)
-      const bounded = (rows as number[][]).filter(([ts]) =>
-        (lowerBound == null || ts >= lowerBound) && ts <= upperBound,
-      )
-      const selected = limit == null ? bounded : bounded.slice(-limit)
+      // Venues cap page sizes independently of the requested limit (OKX:
+      // 300). Walk forward until the window ends, not just the first page.
+      // De-duplicate inclusive boundaries and stop on non-advancing responses.
+      const byTime = new Map<number, number[]>()
+      let cursor = since
+      for (let page = 0; page < 100; page++) {
+        const rows = await this.exchange.fetchOHLCV(ccxtSymbol, timeframe, cursor, queryLimit) as number[][]
+        let latest = Number.NEGATIVE_INFINITY
+        for (const row of rows) {
+          const ts = row[0]
+          if (!Number.isFinite(ts)) continue
+          latest = Math.max(latest, ts)
+          if ((lowerBound == null || ts >= lowerBound) && ts <= upperBound) byTime.set(ts, row)
+        }
+        if (!rows.length || latest < (cursor ?? Number.NEGATIVE_INFINITY) || latest >= upperBound || byTime.size >= queryLimit!) break
+        const next = latest + BAR_INTERVAL_MS[params.interval]
+        if (!Number.isFinite(next) || next > upperBound || (cursor != null && next <= cursor)) break
+        cursor = next
+      }
+      const selected = [...byTime.values()].sort((a, b) => a[0] - b[0]).slice(-limit)
       return selected.map(([ts, o, h, l, c, v]) => ({
         timestamp: new Date(ts),
         open: String(o), high: String(h), low: String(l), close: String(c),

@@ -131,3 +131,12 @@ apply supplies the same `{ skill, action }` as `projection`, plus the exact plan
 digest and conflict resolutions. Supported actions are `install`, `update`,
 `remove` and `restore`. Preview is read-only; stale files or config invalidate
 apply. Failures before commit restore both files and preferences.
+
+## CLI context injection
+
+Workspace launch supplies `OPENALICE_HOME`, `OPENALICE_PROJECT_ID`, its tool
+endpoint and `AQ_WS_ID`; Session/run identity remains separate. Ordinary shells
+can select that Project through `openalice exec --project <key> alice ...`.
+Project-only requests omit Workspace identity and expose only global registry
+commands. Workspace calls still enforce their CLI preferences. See
+[[docs/cli-supervisor.md]] for resolution and endpoint discovery.

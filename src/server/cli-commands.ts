@@ -41,6 +41,8 @@ const BASE_EXPORTS: Record<string, CliExport> = {
       },
       market: {
         search: 'marketSearchForResearch',
+        'search-bars': 'searchBars',
+        bars: 'getMarketBars',
         // Discover data sources + drive them: `vendors` lists what's available,
         // each with on/off state and a usage note (symbol convention, search
         // language); `vendor-set` flips one on/off, live on the next search.
@@ -48,6 +50,7 @@ const BASE_EXPORTS: Record<string, CliExport> = {
         'vendor-set': 'setMarketVendor',
       },
       analysis: {
+        // Shipped alias; new raw-data workflows use market search-bars.
         'search-bars': 'searchBars',
         quant: 'calculateQuant',
         // Dated as-of read with a freshness contract for retrospective analysis.
