@@ -80,6 +80,7 @@ describe('assertDesktopPackage', () => {
     const builderRequire = createRequire(desktopRequire.resolve('electron-builder'))
     const { doMergeConfigs } = builderRequire('app-builder-lib/out/util/config/config.js')
     const { getMainFileMatchers, getNodeModuleFileMatcher } = builderRequire('app-builder-lib/out/fileMatcher.js')
+    const { AppFileWalker } = builderRequire('app-builder-lib/out/util/AppFileWalker.js')
     // Exercise builder's normalization: a platform string exclusion can create
     // a separate all-files matcher beside the normalized global FileSet.
     const config = doMergeConfigs([JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).build])
@@ -88,8 +89,9 @@ describe('assertDesktopPackage', () => {
     const expand = (value: string) => value
     const matchers = getMainFileMatchers(root, destination, expand, config[platform], { info }, join(root, 'dist/electron-app'), false)
     const fileStat = { isDirectory: () => false }
-    const selected = (file: string) => matchers.some((matcher: { createFilter: () => (path: string, stat: unknown) => boolean }) =>
-      matcher.createFilter()(join(root, file), fileStat))
+    const filters = matchers.map((matcher: unknown) => new AppFileWalker(matcher, info).filter)
+    const selected = (file: string) => filters.some((filter: (path: string, stat: unknown) => boolean) =>
+      filter(join(root, file), fileStat))
     for (const file of ['dist/main.js', 'dist/electron/main.js', 'services/uta/dist/uta.js', 'services/connector/dist/connector.cjs']) {
       expect(selected(file), file).toBe(true)
     }

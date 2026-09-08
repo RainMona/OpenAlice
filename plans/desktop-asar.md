@@ -117,3 +117,13 @@ resources as well as app code. Use a FileSet for the platform exclusion instead.
 The real builder regression now checks macOS and Windows allowlists plus the
 platform-specific dugite binary exclusion (20 focused tests pass). This fixes
 the selection boundary rather than weakening the duplicate-payload assertion.
+
+
+Run 34193513989 still detected the duplicate. The initial builder regression
+covered matcher construction but missed AppFileWalker's later implicit `**/*`
+for a pure-exclusion FileSet. Extending the test to instantiate AppFileWalker
+reproduced the failure locally (1 failed, 9 passed), and adding a positive
+`package.json` anchor to the Windows FileSet made it pass (20 targeted tests).
+The real copy-stage filter now retains app entries and excludes source/docs,
+external resources, and the Windows dugite binary payload. The previous claim
+that FileSet form alone was sufficient is superseded by this positive anchor.

@@ -566,10 +566,11 @@ Keep these true together:
 - `dugite` remains in `pnpm.onlyBuiltDependencies` because macOS packages use
   its embedded Git. The Windows builder excludes `node_modules/dugite/git/**`,
   keeps the JS wrapper, and must route it through managed PortableGit. Keep
-  that Windows exclusion in a `{ from: ".", filter: [...] }` FileSet: a bare
-  string exclusion creates a separate all-files matcher after builder normalizes
-  the global whitelist, admitting unrelated source and duplicate resources.
-  The package inspector spec exercises builder's actual file selection.
+  that Windows FileSet anchored by the positive `package.json` pattern before
+  the Git exclusion. A pure exclusion (string or FileSet) becomes an all-files
+  matcher during builder's matching or AppFileWalker stage, admitting unrelated
+  source and duplicate resources. The package inspector spec exercises both
+  builder normalization and the actual AppFileWalker filter.
 - Pi and PortableGit versions, download URLs, and checksums remain pinned in
   `scripts/vendor-managed-runtime.mjs`.
 - Managed `fd` and `ripgrep` versions, release URLs, checksums, binaries, and
