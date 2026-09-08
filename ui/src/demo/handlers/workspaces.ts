@@ -370,6 +370,13 @@ const demoAgentRuntimeReadiness = {
   checkedAt: '2026-07-08T00:00:00.000Z',
 }
 
+const demoSkillProjection = () => ({
+  injectedVersion: '1.0.0+previous', injectedAt: '2026-07-08T00:00:00.000Z',
+  name: 'alice', enabled: true, installed: true, canonicalPresent: true,
+  customized: true, sourceChanged: true, mirrorDiverged: false,
+  files: ['.agents', '.claude'].map((root) => ({ path: `${root}/skills/alice/SKILL.md`, currentPreview: '# Alice\n\nLocal research instructions.', sourcePreview: '# Alice\n\nProject-provided collaboration and data CLI guidance.', differs: true, truncated: false, unverified: false })),
+})
+
 const demoTemplateUpgradePlan = (workspaceId: string) => ({
   workspaceId,
   template: 'chat',
@@ -666,13 +673,14 @@ export const workspacesHandlers = [
     version: '1.0.0+demo-skills',
     commands: { alice: { rss: ['glob', 'grep', 'read'], harness: ['upgrade'] }, traderhub: { equity: ['profile'] }, 'alice-uta': { account: ['list'] } },
     skills: [{ name: 'alice', files: [{ path: 'SKILL.md', content: '# Alice\n\nProject-provided collaboration and data CLI guidance.' }] }],
-    workspaces: demoWorkspaces.map((ws) => ({ id: ws.id, name: ws.tag, template: ws.template, plan: {
+    workspaces: demoWorkspaces.map((ws) => ({ id: ws.id, name: ws.tag, template: ws.template, projections: [demoSkillProjection()], plan: {
       ...demoTemplateUpgradePlan(ws.id), template: 'alice-harness',
       fromVersion: 'unversioned', toVersion: '1.0.0+demo-skills',
       files: demoTemplateUpgradePlan(ws.id).files.filter((file) => file.path.includes('/skills/')).map((file) => ({ ...file, path: file.path.replace('template-research', 'alice') })),
       summary: { ready: 1, preserved: 0, conflicts: 1, unchanged: 0 },
     } })),
   })),
+  http.get('/api/workspaces/:id/alice-harness/skills/:skill', () => HttpResponse.json(demoSkillProjection())),
   http.get('/api/workspaces/:id/alice-harness', ({ params }) => HttpResponse.json({
     appliedVersion: '1.0.0+demo', availableVersion: '1.1.0+demo', runtimeAuthority: 'alice-project',
     skillDefaults: { alice: true, 'alice-analysis': true, 'alice-uta': true, traderhub: true, 'self-scheduling': true },
@@ -684,12 +692,20 @@ export const workspacesHandlers = [
     demoHarnessConfigs.set(String(params.id), await request.json() as AliceHarnessConfig)
     return HttpResponse.json({ ok: true })
   }),
-  http.get('/api/workspaces/:id/alice-harness-upgrade', ({ params }) => HttpResponse.json({ plan: {
-    ...demoTemplateUpgradePlan(String(params.id)), template: 'alice-harness',
-    fromVersion: '1.0.0+demo', toVersion: '1.1.0+demo',
-    files: demoTemplateUpgradePlan(String(params.id)).files.filter((file) => file.path.includes('/skills/')).map((file) => ({ ...file, path: file.path.replace('template-research', 'alice') })),
-    summary: { ready: 1, preserved: 0, conflicts: 1, unchanged: 0 },
-  } })),
+  http.get('/api/workspaces/:id/alice-harness-upgrade', ({ params, request }) => {
+    const action = new URL(request.url).searchParams.get('action')
+    const files = demoSkillProjection().files.map((file) => ({
+      path: file.path, status: action === 'restore' || action === 'install' ? 'ready' : 'conflict',
+      operation: action === 'remove' ? 'remove' : 'update', currentPreview: file.currentPreview,
+      templatePreview: action === 'remove' ? null : file.sourcePreview,
+      currentTruncated: false, templateTruncated: false, canUseTemplate: true,
+    }))
+    return HttpResponse.json({ plan: {
+      ...demoTemplateUpgradePlan(String(params.id)), template: 'alice-harness',
+      fromVersion: '1.0.0+demo', toVersion: '1.1.0+demo', files,
+      summary: { ready: files.filter((file) => file.status === 'ready').length, preserved: 0, conflicts: files.filter((file) => file.status === 'conflict').length, unchanged: 0 },
+    } })
+  }),
   http.post('/api/workspaces/:id/alice-harness-upgrade', () => HttpResponse.json({ error: 'demo_read_only', message: 'This recorded preview does not modify Workspace files.' }, { status: 409 })),
   http.get('/api/workspaces/:id/template-upgrade', ({ params }) => {
     const workspace = demoWorkspaces.find((candidate) => candidate.id === String(params.id))

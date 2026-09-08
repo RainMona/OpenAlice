@@ -105,3 +105,12 @@ it('separates ownership groups while keeping source/mirror identity independent'
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'beta' } })
   expect(screen.queryByRole('heading', { name: /Alice Harness injected 1/ })).toBeNull()
 })
+
+it('keeps one mirror and attachment section when switching Skills repeatedly', () => {
+  const { container } = render(<CapabilityBrowser wsId="one" view="skills" resolvePath={(p) => p} />)
+  for (const name of ['beta', 'alpha', 'beta', 'alpha']) {
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(name) }))
+    expect(container.querySelectorAll('.cap-mirrors')).toHaveLength(1)
+    expect(screen.getAllByText(i18n.t('capabilities.files'))).toHaveLength(1)
+  }
+})

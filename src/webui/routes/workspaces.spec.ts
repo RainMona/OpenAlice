@@ -44,6 +44,7 @@ function build(
     deleteSessionPresence?: any;
     lifecycle?: any;
     templateUpgrades?: any;
+    aliceHarnessUpgrades?: any;
     sourceUpgrades?: any;
     workspaceAbsorbs?: any;
     availability?: Record<string, { installed: boolean; path: string | null }>;
@@ -196,6 +197,7 @@ function build(
     probeAgentRuntimeReadiness,
     lifecycle,
     templateUpgrades,
+    aliceHarnessUpgrades: opts.aliceHarnessUpgrades ?? templateUpgrades,
     sourceUpgrades,
     workspaceAbsorbs,
     sessionDirectory: vi.fn(async (id: string) => id === 'ws-1'
@@ -611,6 +613,21 @@ describe('Workspace lifecycle routes', () => {
     const { app } = build({ lifecycle });
     expect((await del(app, '/departed/ws-old')).status).toBe(200);
     expect(lifecycle.purge).toHaveBeenCalledWith('ws-old');
+  });
+});
+
+describe('Skill projection routes', () => {
+  it('validates the Skill and action, and forwards the reviewed operation unchanged', async () => {
+    const manager = { plan: vi.fn(async () => ({ planDigest: 'scope' })), apply: vi.fn(async () => ({ changedPaths: [] })) };
+    const { app } = build({ aliceHarnessUpgrades: manager });
+    expect((await get(app, '/ws-1/alice-harness-upgrade?skill=alice&action=restore')).status).toBe(200);
+    expect(manager.plan).toHaveBeenCalledWith('ws-1', { skill: 'alice', action: 'restore' });
+    expect((await post(app, '/ws-1/alice-harness-upgrade', { planDigest: 'scope', projection: { skill: 'alice', action: 'restore' } })).status).toBe(200);
+    expect(manager.apply).toHaveBeenCalledWith('ws-1', expect.objectContaining({ planDigest: 'scope', projection: { skill: 'alice', action: 'restore' } }));
+    expect((await get(app, '/ws-1/alice-harness-upgrade?skill=other&action=restore')).status).toBe(400);
+    expect((await post(app, '/ws-1/template-upgrade', { planDigest: 'scope', projection: { skill: 'alice', action: 'restore' } })).status).toBe(400);
+    expect((await post(app, '/ws-1/alice-harness-upgrade', { planDigest: 'scope', projection: { skill: 'alice', action: 'delete-everything' } })).status).toBe(400);
+    expect(manager.apply).toHaveBeenCalledTimes(1);
   });
 });
 

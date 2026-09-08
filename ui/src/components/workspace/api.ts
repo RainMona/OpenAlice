@@ -188,8 +188,10 @@ export class TemplateUpgradeApiError extends Error {
   }
 }
 
-export async function getTemplateUpgradePlan(wsId: string, layer: 'template' | 'alice-harness' = 'template'): Promise<TemplateUpgradePlan> {
-  const res = await fetch(`/api/workspaces/${encodeURIComponent(wsId)}/${layer}-upgrade`)
+export interface SkillProjectionRequest { skill: string; action: 'install' | 'update' | 'remove' | 'restore' }
+
+export async function getTemplateUpgradePlan(wsId: string, layer: 'template' | 'alice-harness' = 'template', projection?: SkillProjectionRequest): Promise<TemplateUpgradePlan> {
+  const res = await fetch(`/api/workspaces/${encodeURIComponent(wsId)}/${layer}-upgrade${projection ? `?${new URLSearchParams({ ...projection })}` : ''}`)
   const body = await res.json().catch(() => ({})) as {
     plan?: TemplateUpgradePlan
     error?: string
@@ -211,11 +213,12 @@ export async function applyTemplateUpgrade(
   planDigest: string,
   resolutions: Readonly<Record<string, TemplateUpgradeResolution>>,
   layer: 'template' | 'alice-harness' = 'template',
+  projection?: SkillProjectionRequest,
 ): Promise<TemplateUpgradeResult> {
   const res = await fetch(`/api/workspaces/${encodeURIComponent(wsId)}/${layer}-upgrade`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ planDigest, resolutions }),
+    body: JSON.stringify({ planDigest, resolutions, ...(projection ? { projection } : {}) }),
   })
   const body = await res.json().catch(() => ({})) as {
     result?: TemplateUpgradeResult

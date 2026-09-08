@@ -1,7 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchJson } from '../api/client'
 import { applyTemplateUpgrade, type TemplateUpgradePlan } from '../components/workspace/api'
+export interface SkillProjection {
+  injectedVersion?: string | null
+  injectedAt?: string | null
+  name: string
+  enabled: boolean
+  installed: boolean
+  canonicalPresent: boolean
+  mirrorDiverged: boolean
+  customized: boolean
+  sourceChanged: boolean
+  files: { path: string; currentPreview?: string | null; sourcePreview?: string | null; differs: boolean; truncated: boolean; unverified: boolean }[]
+}
 export interface InjectionWorkspace {
+  projections?: SkillProjection[]
   id: string
   name: string
   template: string
@@ -61,4 +74,19 @@ export function useProjectInjection() {
     }
   }
   return { data, error, refresh, busy, results, updateReady }
+}
+
+export function useSkillProjection(workspaceId: string, skill: string, enabled: boolean) {
+  const [data, setData] = useState<SkillProjection | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => {
+    setData(null); setError(null)
+    if (!enabled) return
+    const controller = new AbortController()
+    void fetchJson<SkillProjection>(`/api/workspaces/${encodeURIComponent(workspaceId)}/alice-harness/skills/${encodeURIComponent(skill)}`, { signal: controller.signal })
+      .then((value) => { if (!controller.signal.aborted) setData(value) })
+      .catch((err) => { if (!controller.signal.aborted) setError((err as Error).message) })
+    return () => controller.abort()
+  }, [workspaceId, skill, enabled])
+  return { data, error }
 }
