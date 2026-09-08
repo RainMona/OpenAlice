@@ -128,7 +128,22 @@ describe('buildPackagedToolchainSmokePlan', () => {
       expect(plan.commands[9].env?.PATH.replaceAll('\\', '/')).toContain('vendor/tools/win32-x64/bin')
       expect(plan.commands[10].env?.OPENALICE_MANAGED_PI_NODE_PATH.replaceAll('\\', '/'))
         .toContain('win-unpacked/OpenAlice.exe')
-      expect(plan.commands[11].env?.OPENALICE_TOOL_URL).toBe('/cli')
+      const transport = plan.commands[11]
+      expect(transport.env?.OPENALICE_TOOL_URL).toBe('/cli')
+      const result = spawnSync(process.execPath, ['src/workspaces/cli/bin/openalice-cli.cjs', '--help'], {
+        encoding: 'utf8',
+        timeout: 10_000,
+        env: {
+          ...process.env,
+          ...transport.env,
+          OPENALICE_PROJECT_ID: '',
+          OPENALICE_TOOL_SOCKET: join(root, 'missing.sock'),
+          ELECTRON_RUN_AS_NODE: '',
+        },
+      })
+      expect(result.status).toBe(transport.expectStatus)
+      expect(result.stderr).toMatch(transport.expectStderr)
+      expect(result.stdout).toBe('')
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
