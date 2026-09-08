@@ -106,3 +106,14 @@ valid ASAR structure; inspect leaf files for duplication instead. Fixtures now
 include empty external-resource directories and separately reject a duplicated
 resource file (18 focused tests pass). Windows runtime acceptance remains open
 until the updated verifier reaches and passes it.
+
+
+Run 34192586050 reached the leaf-file check and exposed a real Windows duplicate:
+`default/alice-harness.json`. The underlying builder behavior was reproduced
+locally with its actual `doMergeConfigs` and `getMainFileMatchers`: the preexisting
+bare-string `win.files` exclusion becomes a separate default all-files matcher
+beside the normalized global whitelist. It admitted source, docs and vendor
+resources as well as app code. Use a FileSet for the platform exclusion instead.
+The real builder regression now checks macOS and Windows allowlists plus the
+platform-specific dugite binary exclusion (20 focused tests pass). This fixes
+the selection boundary rather than weakening the duplicate-payload assertion.

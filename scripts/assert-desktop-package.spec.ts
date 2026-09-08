@@ -1,6 +1,7 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
@@ -73,6 +74,33 @@ function writeSearchToolFiles(appRoot: string, platformArch: string, windows = f
 }
 
 describe('assertDesktopPackage', () => {
+  it.each(['mac', 'win'])('keeps the real builder %s file selection inside the app-code boundary', (platform) => {
+    const root = resolve(import.meta.dirname, '..')
+    const desktopRequire = createRequire(join(root, 'apps/desktop/package.json'))
+    const builderRequire = createRequire(desktopRequire.resolve('electron-builder'))
+    const { doMergeConfigs } = builderRequire('app-builder-lib/out/util/config/config.js')
+    const { getMainFileMatchers, getNodeModuleFileMatcher } = builderRequire('app-builder-lib/out/fileMatcher.js')
+    // Exercise builder's normalization: a platform string exclusion can create
+    // a separate all-files matcher beside the normalized global FileSet.
+    const config = doMergeConfigs([JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).build])
+    const info = { config, projectDir: root, buildResourcesDir: 'build', debugLogger: { isEnabled: false } }
+    const destination = join(root, 'dist/inspector-fixture')
+    const expand = (value: string) => value
+    const matchers = getMainFileMatchers(root, destination, expand, config[platform], { info }, join(root, 'dist/electron-app'), false)
+    const fileStat = { isDirectory: () => false }
+    const selected = (file: string) => matchers.some((matcher: { createFilter: () => (path: string, stat: unknown) => boolean }) =>
+      matcher.createFilter()(join(root, file), fileStat))
+    for (const file of ['dist/main.js', 'dist/electron/main.js', 'services/uta/dist/uta.js', 'services/connector/dist/connector.cjs']) {
+      expect(selected(file), file).toBe(true)
+    }
+    for (const file of ['default/alice-harness.json', 'ui/dist/index.html', 'vendor/pi/package.json', 'src/main.ts', 'docs/README.md']) {
+      expect(selected(file), file).toBe(false)
+    }
+    const dependencyFilter = getNodeModuleFileMatcher(root, destination, expand, config[platform], info).createFilter()
+    expect(dependencyFilter(join(root, 'node_modules/dugite/build/lib/index.js'), fileStat)).toBe(true)
+    expect(dependencyFilter(join(root, 'node_modules/dugite/git/bin/git'), fileStat)).toBe(platform === 'mac')
+  })
+
   it('rejects duplicated resource files while permitting empty archive directories', async () => {
     const root = mkdtempSync(join(tmpdir(), 'openalice-package-duplicate-'))
     try {

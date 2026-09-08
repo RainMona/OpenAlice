@@ -170,7 +170,12 @@
       ],
       "icon": "apps/desktop/build/icon.ico",
       "files": [
-        "!node_modules/dugite/git/**"
+        {
+          "from": ".",
+          "filter": [
+            "!node_modules/dugite/git/**"
+          ]
+        }
       ]
     },
     "nsis": {
