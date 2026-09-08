@@ -338,7 +338,9 @@ export async function getHistoricalData(
   }
   const records: Record<string, unknown>[] = []
   for (const q of quotes) {
-    if (q.open == null || q.open <= 0) continue
+    // A missing candle must not invalidate the entire series. Zero/negative
+    // prices are real observations for some contracts (e.g. oil futures).
+    if (![q.open, q.high, q.low, q.close].every(value => typeof value === 'number' && Number.isFinite(value))) continue
 
     const date = q.date instanceof Date ? q.date : new Date(q.date as any)
     const dateStr = isIntraday

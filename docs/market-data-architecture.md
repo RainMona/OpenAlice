@@ -194,3 +194,15 @@ Freshness is a date-level weekday estimate, not a live-market assertion.
 
 Outside a Workspace use `openalice exec --project <key> alice market bars ...`.
 No formula engine is needed to export data or process it with local code.
+
+FX discovery retains USD-base pairs and crosses; Yahoo's abbreviated `JPY=X`
+is normalized to `USDJPY`. Incomplete OHLC rows are omitted rather than failing
+the whole series; valid zero and negative prices remain valid. Commodity roots
+map to vendor futures symbols (including current lumber `LBR=F`), so these
+histories are not executable spot quotes or explicit delivery-month contracts.
+
+CCXT history walks exchange pages within the trailing requested window. A
+venue's per-page cap must not silently turn a large request into an old first
+page. Pagination deduplicates timestamps and stops if the provider no longer
+advances; short results can still reflect upstream availability. Validate the
+installed Broker Pack as well as source code when changing this adapter.
