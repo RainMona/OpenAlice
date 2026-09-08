@@ -390,14 +390,14 @@ export function CapabilityBrowser({
                 <code className="cap-path">{current.path}</code>
               </div>
               <MirrorDetails
-                key={current.path}
+                key={`mirrors:${current.path}`}
                 wsId={wsId}
                 skill={current}
                 instructions={view === 'instructions'}
               />
               {view === 'skills' && (
                 <SkillFiles
-                  key={current.path}
+                  key={`files:${current.path}`}
                   wsId={wsId}
                   directory={current.path.slice(
                     0,
@@ -410,14 +410,14 @@ export function CapabilityBrowser({
               )}
               {attachment ? (
                 <Attachment
-                  key={attachment}
+                  key={`attachment:${attachment}`}
                   wsId={wsId}
                   path={attachment}
                   resolveHref={resolveHref}
                 />
               ) : (
                 <Document
-                  key={current.path}
+                  key={`document:${current.path}`}
                   path={current.path}
                   result={current.content}
                   resolveHref={resolveHref}
