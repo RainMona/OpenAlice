@@ -80,3 +80,20 @@ Windows native package/toolchain and N-1 acceptance is running at
 https://github.com/TraderAlice/OpenAlice/actions/runs/34191057511
 against implementation commit `70ca7064`; preflight passed. Signing,
 notarization and installer publication were not exercised.
+
+
+## Windows verification follow-up
+
+Run 34191057511 generated the Windows ASAR package successfully after source
+Guardian/PTY and existing-owner acceptance. Its package assertion failed before
+runtime acceptance: `@electron/asar` looks up nested directories using the
+host path separator, while the assertion supplied slash-separated manifest
+paths. Normalize those queries before `statFile`; the existing archive fixture
+spec exercises nested entries and now runs on native hosts before the expensive
+build. This is a verifier correction, not evidence of a successful Windows
+Workspace or upgrade. A new native run must complete those gates.
+
+The macOS candidate also passed toolchain and all 12 Workspace receipt checks
+from a path containing both spaces and Chinese characters; its temporary copy
+was cleaned via the package-artifact ownership helper. The held preview uses a
+temporary business-data home and contains a manually initialized Chat Workspace.

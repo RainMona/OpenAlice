@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { dirname, join, relative, resolve } from 'node:path'
+import { dirname, join, normalize, relative, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { extractFile, listPackage, statFile } from '@electron/asar'
 import { DEFAULT_DESKTOP_PACKAGE_ROOT, resolveDesktopPackageRootArg } from './desktop-package-artifact.mjs'
@@ -88,7 +88,8 @@ export function assertDesktopPackage(options = {}) {
   try {
     archiveEntries = listPackage(archivePath).map((entry) => entry.replaceAll('\\', '/').replace(/^\//, ''))
     for (const file of ASAR_REQUIRED_FILES) {
-      const stat = statFile(archivePath, file)
+      // ASAR's directory lookup splits on path.sep, including on Windows.
+      const stat = statFile(archivePath, normalize(file))
       if ('files' in stat) throw new Error(`${file} must be a file`)
       if (stat.unpacked && (!file.startsWith('node_modules/') || !existsSync(join(unpackedRoot, file)))) {
         throw new Error(`${file} must be packed or an available native dependency`)
@@ -109,7 +110,7 @@ export function assertDesktopPackage(options = {}) {
       throw new Error('node-pty native payload is missing')
     }
     for (const file of nativeFiles) {
-      if (!statFile(archivePath, file).unpacked || !existsSync(join(unpackedRoot, file))) {
+      if (!statFile(archivePath, normalize(file)).unpacked || !existsSync(join(unpackedRoot, file))) {
         throw new Error(`native payload must be unpacked: ${file}`)
       }
     }
