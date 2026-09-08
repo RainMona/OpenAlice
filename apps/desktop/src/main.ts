@@ -697,11 +697,9 @@ app.whenReady().then(async () => {
   const homeEnv = app.isPackaged
     ? {
         OPENALICE_HOME: userDataHome,
-        // The app dir itself (Contents/Resources/app with asar:false) — it's
-        // what *contains* default/, ui/dist, src/workspaces, services/uta/dist,
-        // matching how src/core/paths.ts resolves resources (APP_HOME/<dir>).
-        // NOT dirname() — that points one level above the shipped files.
-        OPENALICE_APP_HOME: app.getAppPath(),
+        // External tools need real paths. Code and dependencies stay in
+        // app.asar; shipped Workspace assets/toolchains live beside it.
+        OPENALICE_APP_HOME: join(process.resourcesPath, 'runtime'),
       }
     : {
         OPENALICE_HOME: userDataHome,

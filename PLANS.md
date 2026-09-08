@@ -29,6 +29,9 @@ the durable truth after it changes. Git history is the archive.
 
 ## Active
 
+- [[plans/desktop-asar.md]] — Moves desktop JavaScript into ASAR with explicit
+  physical runtime resources; held on `codex/desktop-asar` for package acceptance.
+
 - [[plans/web-conversation-surface.md]] — Generalizes WebPi into one Web
   conversation surface: a neutral `WebSessionHost` with `pi-rpc`, `acp`,
   `claude-stream-json`, and `codex-app-server` transports, first-class
