@@ -16,7 +16,7 @@ function writePackageFile(appRoot: string, file: string, content = '') {
   writeFileSync(path, content)
 }
 
-async function writeBasePackage(appRoot: string, manifest: unknown) {
+async function writeBasePackage(appRoot: string, manifest: unknown, duplicateResource = false) {
   for (const file of BASE_REQUIRED_FILES) {
     if (file === 'vendor/manifest.json') continue
     writePackageFile(appRoot, file)
@@ -24,6 +24,12 @@ async function writeBasePackage(appRoot: string, manifest: unknown) {
   writePackageFile(appRoot, 'package.json', JSON.stringify({ version: '0.91.1' }))
   writePackageFile(appRoot, 'vendor/manifest.json', JSON.stringify(manifest))
   const input = join(dirname(appRoot), 'fixture-source')
+  // Native Windows builder retains these empty directory entries when it
+  // moves their files to extraResources. They are not duplicated payloads.
+  for (const dir of ['default', 'vendor', 'ui/dist', 'src/workspaces/templates']) {
+    mkdirSync(join(input, dir), { recursive: true })
+  }
+  if (duplicateResource) writePackageFile(input, 'default/duplicated.md', 'duplicate')
   for (const file of ASAR_REQUIRED_FILES) writePackageFile(input, file)
   writePackageFile(input, 'package.json', JSON.stringify({ version: '0.91.1' }))
   writePackageFile(input, 'node_modules/node-pty/build/Release/pty.node')
@@ -67,6 +73,18 @@ function writeSearchToolFiles(appRoot: string, platformArch: string, windows = f
 }
 
 describe('assertDesktopPackage', () => {
+  it('rejects duplicated resource files while permitting empty archive directories', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'openalice-package-duplicate-'))
+    try {
+      const appRoot = join(root, 'mac-arm64/OpenAlice.app/Contents/Resources/runtime')
+      await writeBasePackage(appRoot, { ...piManifest(), ...searchToolsManifest('darwin-arm64') }, true)
+      expect(assertDesktopPackage({ packageRoot: root, arch: 'arm64' }).errors.join('\n'))
+        .toContain('external runtime resource duplicated in ASAR: default/duplicated.md')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   it('rejects a legacy loose app tree with no ASAR runtime layout', () => {
     const root = mkdtempSync(join(tmpdir(), 'openalice-package-legacy-'))
     try {

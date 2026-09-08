@@ -99,7 +99,10 @@ export function assertDesktopPackage(options = {}) {
     const runtimeMetadata = JSON.parse(readFileSync(join(appRoot, 'package.json'), 'utf8'))
     if (archiveMetadata.version !== runtimeMetadata.version) throw new Error('archive/runtime product versions differ')
     for (const entry of archiveEntries) {
-      if (entry === 'vendor' || entry === 'ui' || entry === 'default' || entry.startsWith('src/workspaces/')) {
+      const externalResource = /^(vendor|ui|default)(\/|$)/.test(entry) || entry.startsWith('src/workspaces/')
+      // Windows builder can retain empty parent directories after excluding
+      // extraResources. Only actual files represent duplicated payloads.
+      if (externalResource && !('files' in statFile(archivePath, normalize(entry)))) {
         throw new Error(`external runtime resource duplicated in ASAR: ${entry}`)
       }
     }

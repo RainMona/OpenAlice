@@ -97,3 +97,12 @@ The macOS candidate also passed toolchain and all 12 Workspace receipt checks
 from a path containing both spaces and Chinese characters; its temporary copy
 was cleaned via the package-artifact ownership helper. The held preview uses a
 temporary business-data home and contains a manually initialized Chat Workspace.
+
+
+Run 34191866368 passed the native inspector fixtures and rebuilt the Windows
+package, then the payload check rejected the `default` directory entry before
+examining its contents. Empty parent entries left by resource exclusion are
+valid ASAR structure; inspect leaf files for duplication instead. Fixtures now
+include empty external-resource directories and separately reject a duplicated
+resource file (18 focused tests pass). Windows runtime acceptance remains open
+until the updated verifier reaches and passes it.
