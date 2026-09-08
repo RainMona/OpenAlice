@@ -1,3 +1,4 @@
+import { BarFreshness } from './BarFreshness'
 import { WatchlistButton } from './WatchlistButton'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -342,6 +343,7 @@ export function KlinePanel({ selection, source, onSnapshot, displayTitle }: Prop
             </span>
           )}
         </div>
+        {meta && <BarFreshness meta={meta} />}
         <div className="flex items-center gap-x-5 gap-y-2 flex-wrap">
           {sourceOptions.length > 1 && (
             <label className="flex items-center gap-2">

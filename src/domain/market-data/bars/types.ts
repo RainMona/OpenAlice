@@ -1,3 +1,4 @@
+import type { BarFreshness } from './freshness.js'
 /**
  * Federated bar layer — types.
  *
@@ -69,6 +70,7 @@ export type BarCapability = 'free' | 'delayed' | 'subscription' | 'iex' | 'realt
 
 /** Data-source metadata — structurally a superset of `DataSourceMeta`. */
 export interface BarMeta {
+  freshness?: BarFreshness
   symbol: string
   from: string
   to: string
@@ -84,16 +86,13 @@ export interface BarMeta {
   limit?: number
   /** Rows omitted by this service's hard ceiling, before count selection. */
   truncatedRows?: number
-  // ---- freshness contract ----
-  // The point-in-time the request was anchored to (opts.end ?? asOf ?? today),
-  // and whether the data actually REACHES it. A delayed vendor silently
-  // stopping a day behind "now" is the failure mode this makes loud: never let
-  // a stale `to` masquerade as the current price.
+  // Legacy weekday comparisons retained for existing consumers.
+  // Use freshness for record timestamps; neither establishes measured feed latency.
   /** Effective anchor of the request (YYYY-MM-DD): explicit end/asOf, else today. */
   asOf?: string
-  /** True when the last bar reaches `asOf` (no trading-day gap); false = stale. */
+  /** Legacy weekday comparison only; does not establish realtime freshness. */
   isLatestActual?: boolean
-  /** Trading-day gap between the last bar and `asOf` (0 when current). */
+  /** Weekday gap to `asOf`, ignoring exchange holidays and session hours. */
   staleTradingDays?: number
 }
 
