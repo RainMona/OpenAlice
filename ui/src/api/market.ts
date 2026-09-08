@@ -159,6 +159,17 @@ export interface BarSourceCandidate {
 /** Provenance of the bars currently shown — the explicit "who provided this". */
 export interface BarMeta {
   freshness?: {
+    earliestRecordAt?: string | null
+    earliestTimestampKind?: 'instant' | 'date' | 'unknown'
+    earliestTimezone?: string | null
+    latestTimezone?: string | null
+    timestampMeaning?: 'provider_bar_timestamp'
+    delay?: {
+      status: 'possible' | 'unknown'
+      estimatedSeconds: number | null
+      basis: 'source_classification' | 'insufficient_evidence' | 'historical_request' | 'no_records'
+      explanation: string
+    }
     fetchedAt: string
     latestRecordAt: string | null
     timestampKind: 'instant' | 'date' | 'unknown'

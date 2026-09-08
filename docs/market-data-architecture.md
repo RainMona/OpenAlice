@@ -234,6 +234,15 @@ Date-only, timezone-less and future records have no inferred age. Existing
 `isLatestActual`/`staleTradingDays` are legacy weekday comparisons, not realtime
 guarantees or exchange-calendar checks.
 
-Charts show latest record time separately from fetch time; source-declared
+Charts show latest record time separately from fetch time; OpenAlice-classified
 `delayed` does not imply a known number of delayed minutes. Board refresh labels
 say “Fetched” because successful polling does not establish underlying freshness.
+
+Freshness also names the earliest returned record, each endpoint's precision and
+explicit timezone offset (null when unknown), and `timestampMeaning` as the
+provider bar timestamp, without assuming open/close boundary semantics.
+`delay.status` is `possible` for an OpenAlice delayed-source classification,
+otherwise `unknown`; `basis` distinguishes this heuristic from historical
+requests, empty results and insufficient evidence. `estimatedSeconds` remains
+null until actual latency evidence is available. The explanation travels with
+the CLI JSON; neither fresh timestamps nor `realtime` capability certify latency.

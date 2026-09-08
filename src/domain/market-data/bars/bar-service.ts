@@ -169,9 +169,11 @@ function computeFreshness(
   lastBarDate: string,
   opts: GetBarsOpts,
   now: () => Date,
+  earliest: string,
+  capability?: string,
 ): Pick<BarMeta, 'asOf' | 'isLatestActual' | 'staleTradingDays' | 'freshness'> {
   const observed = now()
-  const freshness = describeBarFreshness(lastBarDate, Boolean(opts.end || opts.asOf), observed)
+  const freshness = describeBarFreshness(lastBarDate, Boolean(opts.end || opts.asOf), observed, { earliest, capability })
   if (!lastBarDate) return { freshness }
   const anchor = (opts.end ?? opts.asOf ?? observed.toISOString().slice(0, 10)).slice(0, 10)
   const gap = tradingDaysBetween(lastBarDate.slice(0, 10), anchor)
@@ -248,7 +250,7 @@ export function createBarService(deps: BarServiceDeps): BarService {
         barId: formatBarId(provider, symbol),
         provider,
         barCapability: VENDOR_CAPABILITY[provider],
-        ...computeFreshness(filtered[filtered.length - 1]?.date ?? '', opts, () => new Date()),
+        ...computeFreshness(filtered[filtered.length - 1]?.date ?? '', opts, () => new Date(), filtered[0]?.date ?? '', VENDOR_CAPABILITY[provider]),
       }),
     }
   }
@@ -294,7 +296,7 @@ export function createBarService(deps: BarServiceDeps): BarService {
         sourceId,
         barId,
         barCapability: effectiveCap,
-        ...computeFreshness(bars[bars.length - 1]?.date ?? '', opts, () => new Date()),
+        ...computeFreshness(bars[bars.length - 1]?.date ?? '', opts, () => new Date(), bars[0]?.date ?? '', effectiveCap),
       }),
     }
   }

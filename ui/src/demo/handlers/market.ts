@@ -139,6 +139,8 @@ export const marketHandlers = [
       provider: sourceId, barCapability: sourceId === 'alpaca-paper' ? 'iex' : 'delayed',
     }
     meta.freshness = {
+      earliestRecordAt: meta.from || null,
+      delay: { status: 'unknown', estimatedSeconds: null, basis: 'insufficient_evidence', explanation: 'Demo snapshot; actual feed delay cannot be assessed.' },
       fetchedAt: new Date().toISOString(), latestRecordAt: meta.to || null,
       timestampKind: /T.*Z$/.test(meta.to) ? 'instant' : 'date',
       recordAgeSeconds: /T.*Z$/.test(meta.to) ? Math.max(0, Math.floor((Date.now() - Date.parse(meta.to)) / 1000)) : null,
