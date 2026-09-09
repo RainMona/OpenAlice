@@ -53,7 +53,8 @@ categories.
   by the current trading mode. Callback data carries only page-local
   indexes; account ids and pending hashes stay in the Connector session
   and the Alice-validated action request.
-- Connector Service owns outgoing reply syntax. Alice owns one phone-desk Issue
+- Connector Service owns outgoing reply syntax. Resolved file references are
+  delivered at their original position: text before, media, then text after. Alice owns one phone-desk Issue
   per `desk`-capable connector and forwards raw reply text with a Workspace id
   and server-derived `conversation | automation` source. Workspace/Issue
   projection does not parse delivery markers. Inbound owner comments are not

@@ -79,7 +79,7 @@ class FakeThirdPartyAdapter implements ConnectorAdapter {
     this.delivered.push(notification)
   }
 
-  async sendOwnerText(): Promise<void> {}
+  async sendOwnerText(_text: string): Promise<void> {}
 
   health(): ConnectorAdapterHealth {
     return { id: this.id, enabled: true, status: this.status }
@@ -886,8 +886,14 @@ it('owns reply syntax, sends final files once, and preserves ordinary syntax dis
   read.mockClear()
   await manager.sendOwnerChat({ ...base, id: 'limit', phase: 'final', text: Array.from({ length: 6 }, (_, i) => `[[${i}.pdf]]`).join(' ') })
   expect(read).toHaveBeenCalledTimes(5)
-  expect(adapter.sendOwnerChat).toHaveBeenLastCalledWith(expect.objectContaining({ text: '[[5.pdf]]' }))
+  expect(warning).toHaveBeenLastCalledWith('[[5.pdf]]')
   await manager.sendOwnerChat({ ...base, id: 'sticker', phase: 'final', text: '[[sticker/hello.png]]' })
   expect(adapter.sendOwnerFile).toHaveBeenLastCalledWith(expect.any(Object), 'sticker')
+  const order: string[] = []
+  adapter.sendOwnerChat.mockImplementation(async message => { order.push(message.text ?? 'finish') })
+  adapter.sendOwnerFile.mockImplementation(async () => { order.push('sticker') })
+  warning.mockImplementation(async text => { order.push(text) })
+  await manager.sendOwnerChat({ ...base, id: 'interleaved', phase: 'final', text: 'Before [[sticker/hello.png]] After' })
+  expect(order).toEqual(['Before', 'sticker', 'After'])
   await manager.stop()
 })
