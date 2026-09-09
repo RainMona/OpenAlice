@@ -146,6 +146,13 @@ Project-only requests omit Workspace identity and expose only global registry
 commands. Workspace calls still enforce their CLI preferences. See
 [[docs/cli-supervisor.md]] for resolution and endpoint discovery.
 
+Codex launches use `allow_login_shell=false` across TUI, Web and headless
+Sessions. Alice has already assembled the child PATH; a login profile such as
+Linux `/etc/profile` can replace it and make the injected commands disappear.
+The setting is a per-launch override, including resumes, not a user-config or
+Skill rewrite. Verify CLI discovery inside the agent's shell, not just its
+parent process environment.
+
 ## Optional sticker resources
 
 Chat sticker packs use a separate Project-owned projection and generated Skill.
