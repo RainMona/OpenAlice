@@ -1,4 +1,5 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import * as deskProjection from '../workspaces/issues/telegram-desk-project.js'
+import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -683,4 +684,20 @@ describe('Issue execution tools', () => {
     start.mockRejectedValue(Object.assign(new Error('Already running'), { code: 'already_running' }))
     expect(await run(issueRunNowFactory.build(context), { id: 'daily' })).toMatchObject({ ok: false, code: 'already_running' })
   })
+})
+
+
+it('carries trusted run scope into in-turn desk comments', async () => {
+  await run(issueCreateFactory.build(ctx()), { id: 'desk', title: 'Desk', what: 'Talk' })
+  const path = join(dir, '.alice/issues/desk.md')
+  await writeFile(path, (await readFile(path, 'utf8')).replace('---\n', '---\nconnectorDesk: telegram\n'))
+  const project = vi.spyOn(deskProjection, 'projectDeskComment').mockResolvedValue()
+  try {
+    await run(issueCommentFactory.build(ctx({ callerRun: {
+      taskId: 'run-live', status: 'running', trigger: { kind: 'issue', workspaceId: 'ws-self', issueId: 'desk' },
+    } })), { id: 'desk', text: '[[no-reply]] quiet' })
+    expect(project).toHaveBeenCalledWith(expect.anything(), expect.anything(), undefined, {
+      progressScopeId: 'run-live', phase: 'progress', automated: true,
+    })
+  } finally { project.mockRestore() }
 })

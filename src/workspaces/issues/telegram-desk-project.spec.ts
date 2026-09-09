@@ -255,6 +255,18 @@ describe('final comment projection', () => {
     })).toBe(false)
   })
 
+  it('projects an in-turn comment as progress and suppresses automated no-reply without ending the turn', async () => {
+    const { client, sent } = mockClient()
+    const issue = { connectorDesk: 'telegram' }
+    const comment = { id: 'note', author: '@agent', at: 'now', markdown: 'Still checking.' }
+    await projectDeskComment(issue, comment, client, { phase: 'progress', progressScopeId: 'run' })
+    expect(sent[0]).toMatchObject({ phase: 'progress', conversationId: 'run', text: 'Still checking.' })
+    await projectDeskComment(issue, { ...comment, markdown: '[[no-reply]] quiet' }, client, {
+      phase: 'progress', progressScopeId: 'run', automated: true,
+    })
+    expect(sent).toHaveLength(1)
+  })
+
   it('persists a final comment even when the same text was shown in an ephemeral draft', async () => {
     const { client, sent } = mockClient()
     const issue = { connectorDesk: 'telegram' }

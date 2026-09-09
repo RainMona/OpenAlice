@@ -60,13 +60,19 @@ categories.
   one quoted comment on that Issue. Alice suppresses a desk comment only when
   its run carries the `connector-cron-issue` trigger metadata and its text
   contains the literal tag `[[no-reply]]`. Ordinary chat replies treat that
-  tag as text. Inbound owner comments are not echoed back to that connector.
+  tag as text. Agent-written `issue comment` carries its server-resolved run
+  provenance too: an Issue-triggered run consumes the tag, while an ordinary
+  conversation does not. Inbound owner comments are not echoed back to that connector.
   While a desk turn is running, Alice also
   projects an explicit `accepted | progress | final | failed` lifecycle.
   Telegram turns `accepted` into a native Bot API live draft immediately,
   refreshes that draft every 20 seconds, and replaces it with sealed mid-turn
   `text` blocks (a tool or error followed them). If live drafts are unavailable,
-  Telegram refreshes the ordinary typing action every four seconds. Final and
+  Telegram refreshes the ordinary typing action every four seconds. Typing also
+  continues alongside text drafts during tool calls, until the terminal event.
+  In-turn CLI comments update the same draft rather than marking it final. A
+  suppressed automated reply sends a textless final event to stop activity
+  without publishing a message. Final and
   failed replies are always persistent messages; ephemeral progress never
   suppresses an identical final answer. Tool names, status, and payloads stay
   off the owner chat. The trailing text still becomes today's reply comment.

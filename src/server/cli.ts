@@ -187,6 +187,7 @@ export function registerCliRoutes(app: Hono, deps: CliGatewayDeps, manifestOnly 
         // (resolved server-side). Only the invoke path passes it; manifest omits
         // it (no execution, no push). Absent → undefined.
         ...(origin ? { origin } : {}),
+        ...(origin?.kind === 'headless' && origin.runId && svc ? { callerRun: svc.headlessTasks.get(origin.runId) ?? undefined } : {}),
       })
       return {
         resolve: (name) => wsTools[name] ?? null,
