@@ -191,11 +191,11 @@ Load-bearing paths:
 
 ## Reply attachments
 
-A final reply may include `[[file:reports/chart.png]]`. Paths are relative to
+A final reply may include `[[reports/chart.png]]`. Paths are relative to
 its source Workspace. Ordinary `[[name]]` references remain text; inline/fenced
 code and escaped brackets are literal, including examples of `[[no-reply]]`.
-The Connector parser removes active file markers from displayed text, reads
-files through Alice's generic `/cli/workspace-files/:id?path=...` interface,
+The Connector extension parser preserves unknown syntax and unresolved paths.
+It removes only successfully resolved references from displayed text, reads files through Alice's generic `/cli/workspace-files/:id?path=...` interface,
 and asks the adapter to upload them. It never accepts a model-provided fetch
 host or reads Workspace directories itself. Dev/server pass the selected tool
 port; Electron passes its local tool socket. The existing local tool listener
@@ -205,10 +205,15 @@ Files retain their bytes and filename. Binary formats such as PDF, PNG and CSV
 are supported; this path does not use Inbox or its report encoding conversion.
 At most five unique files, each at most 1 MiB, are sent per final reply.
 Absolute paths, escaping symlink targets, directories and oversized reads are
-rejected by the generic file API. A missing file or failed upload produces a
-visible diagnostic and journal failure; remaining files are still attempted.
-Telegram implements reply uploads. Adapters without this capability report the
-unsupported delivery rather than silently dropping the file.
+rejected by the generic file API. Unreadable, missing, unsupported or over-limit references stay literal, including
+when the adapter cannot send files. At most 20 unique candidates are resolved;
+only five readable files are consumed. Upload failures produce a visible diagnostic
+and journal failure; remaining files are still attempted.
+Telegram sends PNG/JPEG/WebP images as photos and `sticker/*.png` or
+`sticker/*.webp` as native static stickers; other formats are documents.
+Files must satisfy Telegram's media requirements; no implicit image conversion
+occurs. Inbox artifact pulls remain documents. The old unreleased `file:` syntax
+is replaced directly, not maintained as a second syntax.
 
 Progress never uploads files. Events for a conversation are serialized;
 concurrent/repeated message IDs share one delivery attempt, including uncertain

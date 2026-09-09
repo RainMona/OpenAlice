@@ -14,6 +14,8 @@ const sendMessageDraft = vi.fn(async () => true)
 const sendRichMessageDraft = vi.fn(async () => true)
 const sendChatAction = vi.fn(async () => true)
 const sendMessage = vi.fn(async () => undefined)
+const sendPhoto = vi.fn(async () => undefined)
+const sendSticker = vi.fn(async () => undefined)
 const sendDocument = vi.fn(async () => undefined)
 
 vi.mock('grammy', async (importOriginal) => {
@@ -31,6 +33,8 @@ vi.mock('grammy', async (importOriginal) => {
         sendChatAction,
         sendMessage,
         sendDocument,
+        sendPhoto,
+        sendSticker,
       }
       command() {}
       on() {}
@@ -455,4 +459,18 @@ describe('Telegram rich outbound text', () => {
     expect(sendMessage).not.toHaveBeenCalled()
     await adapter.stop()
   })
+  it('uses native photo and sticker delivery without changing ordinary artifact delivery', async () => {
+    const adapter = new TelegramConnectorAdapter({ attemptTimeoutMs: 200, reconnectDelayMs: 20 })
+    await startUntilReady(adapter, { botToken: 'token', ownerUserId: '42', chatId: '99' })
+    const content = Buffer.from('test')
+    const attachment = { filename: 'hello.png', mediaType: 'image/png', sizeBytes: content.length,
+      contentBase64: content.toString('base64'), contentSha256: createHash('sha256').update(content).digest('hex') }
+    await adapter.sendOwnerFile(attachment, 'image')
+    await adapter.sendOwnerFile(attachment, 'sticker')
+    expect(sendPhoto).toHaveBeenCalledWith('99', expect.any(Object))
+    expect(sendSticker).toHaveBeenCalledWith('99', expect.any(Object))
+    expect(sendDocument).not.toHaveBeenCalled()
+    await adapter.stop()
+  })
+
 })

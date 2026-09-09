@@ -187,17 +187,17 @@ export class TelegramConnectorAdapter implements ConnectorAdapter {
     return this.sendOwnerFile(delivery.attachment)
   }
 
-  async sendOwnerFile(attachment: ConnectorArtifactDelivery['attachment']): Promise<void> {
+  async sendOwnerFile(attachment: ConnectorArtifactDelivery['attachment'], presentation: import('../core/reply-directives.js').ReplyMedia = 'file'): Promise<void> {
     if (!this.bot || !this.sessionReady) throw new Error('Telegram bot is not ready')
     if (!this.chatId) throw new Error('Telegram private chat is not linked')
     this.tracker.attempt()
     try {
       const file = decodeConnectorAttachment(attachment)
-      await this.bot.api.sendDocument(
-        this.chatId,
-        new InputFile(file.content, file.filename),
-        { caption: truncateTelegramText(`Current file: ${file.filename}`, 200) },
-      )
+      const input = new InputFile(file.content, file.filename)
+      if (presentation === 'sticker') await this.bot.api.sendSticker(this.chatId, input)
+      else if (presentation === 'image') await this.bot.api.sendPhoto(this.chatId, input)
+      else await this.bot.api.sendDocument(this.chatId, input,
+        { caption: truncateTelegramText(`Current file: ${file.filename}`, 200) })
       this.tracker.success(this.ownerUserId)
     } catch (error) {
       this.tracker.degraded(error)
