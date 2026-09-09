@@ -1,3 +1,4 @@
+import { createStickerRoutes } from './stickers.js';
 import { prepareProjectWorkspaces, readProjectWorkspaceSetup } from '../../workspaces/project-workspace-setup.js';
 /**
  * Hono routes for the Workspaces feature, mounted at /api/workspaces.
@@ -265,6 +266,7 @@ export function createWorkspaceRoutes(
   quickChatPreferences: QuickChatWorkspacePreferenceDeps = defaultQuickChatWorkspacePreferenceDeps,
 ): Hono {
   const app = new Hono();
+  app.route('/stickers', createStickerRoutes(svc));
   const headlessSessionInFlight = new Map<string, Promise<OpenHeadlessSessionResult>>();
   const readAutoQuantPreference = () =>
     (quickChatPreferences.readAutoQuantPreferences ?? readAutoQuantPreferences)();
