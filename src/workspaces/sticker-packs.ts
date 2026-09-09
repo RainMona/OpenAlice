@@ -203,7 +203,7 @@ export class StickerPacks {
 }
 
 export function renderStickerSkill(pack: StickerPack) {
-  return `---\nname: alice-stickers\ndescription: Optional expressive stickers for casual user conversation in a chat that supports image replies.\n---\n\n# Alice stickers\n\nUse a sticker when it adds to the conversation. No need to inspect images or use a sticker in every reply. Send a listed relative path as a double-bracket reference.\n\n${pack.stickers.map(item => `- [[sticker/${item.file}]] — ${item.description.replace(/[\r\n]/g, ' ')}`).join('\n')}\n`
+  return `---\nname: alice-stickers\ndescription: Optional expressive stickers for casual user conversation in a chat that supports image replies.\n---\n\n# Alice stickers\n\nUse a sticker when it adds to the conversation. Send at most one sticker per reply. No need to inspect images or use a sticker in every reply. Send a listed relative path as a double-bracket reference.\n\n${pack.stickers.map(item => `- [[sticker/${item.file}]] — ${item.description.replace(/[\r\n]/g, ' ')}`).join('\n')}\n`
 }
 function validateImage(name: string, bytes: Uint8Array) {
   filename.parse(name)
