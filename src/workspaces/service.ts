@@ -574,6 +574,7 @@ export interface WorkspaceService {
   /** Dispatch a scheduled Issue immediately without requiring a failed last
    * run and without advancing its next-fire marker. */
   runIssueNow(wsId: string, id: string): Promise<IssueDetail>;
+  replyToIssue(input: { workspaceId: string; issueId: string; prompt: string; commentId: string }): Promise<{ taskId: string; resumeId: string }>;
   connectorDesk(connectorId: string): Promise<ConnectorDesk | null>;
   createConnectorDesk(connectorId: string, wsId: string): Promise<ConnectorDesk>;
   updateConnectorDesk(connectorId: string, patch: {
@@ -3323,6 +3324,7 @@ export async function createWorkspaceService(opts: CreateWorkspaceServiceOptions
     disableTelegramConnectorDesk: async () => disableConnectorDeskOp('telegram'),
     retryIssue,
     runIssueNow,
+    replyToIssue: (input) => scheduleScanner.runIssueComment(input),
     sessionDirectory,
     setSessionPresence,
     setSessionDisplayName,

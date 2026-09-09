@@ -926,7 +926,7 @@ export type SessionCreatedBy =
       readonly workspaceId: string;
       readonly issueId: string;
       readonly policy: 'new-each-run' | 'new-then-resume';
-      readonly fire: 'schedule' | 'retry';
+      readonly fire: 'schedule' | 'retry' | 'comment';
     }
   | { readonly kind: 'headless'; readonly surface: 'api' }
   | {

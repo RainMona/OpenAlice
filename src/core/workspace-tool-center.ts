@@ -138,6 +138,9 @@ export type WorkspaceConversationAskResult =
     }
 
 export interface WorkspaceConversationControl {
+  /** Follow the live Issue ownership policy, including first-owner recruitment. */
+  replyToIssue?(input: { workspaceId: string; issueId: string; prompt: string; commentId: string }): Promise<{ taskId: string; resumeId: string }>
+
   ask(input: {
     readonly prompt: string
     /** Optional execution watchdog. Omit to let the Session run to completion. */
