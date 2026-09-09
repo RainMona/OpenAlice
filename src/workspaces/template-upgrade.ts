@@ -662,6 +662,7 @@ export async function initializeWorkspaceTemplateState(
 
 export function isManagedTemplatePath(path: string): boolean {
   const normalized = path.replaceAll('\\', '/');
+  if (['.agents', '.claude', '.pi'].some(root => normalized.startsWith(`${root}/skills/alice-stickers/`))) return false;
   if (
     normalized.startsWith('/')
     || normalized.includes('\0')

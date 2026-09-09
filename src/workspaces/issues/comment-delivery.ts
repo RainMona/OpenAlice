@@ -197,7 +197,7 @@ export async function recordIssueCommentReply(input: {
       },
     )
     if (!updated.ok) throw new Error(updated.error)
-    await projectDeskComment(appended.issue, appended.comment).catch(() => undefined)
+    await projectDeskComment(appended.issue, appended.comment, undefined, { workspaceId: input.task.wsId }).catch(() => undefined)
     return 'replied'
   }
 

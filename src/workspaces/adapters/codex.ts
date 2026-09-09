@@ -27,6 +27,9 @@ const CODEX_SESSION_KEY_ENV_NAME = 'OPENALICE_SESSION_KEY';
 const CODEX_PROVIDER_NAME = 'workspace';
 const CODEX_SESSION_PROVIDER_NAME = 'openalice_session';
 const CODEX_DEFAULT_BASE_URL = 'https://api.openai.com/v1';
+// Alice already composes the Workspace PATH. Login profiles can replace it
+// (notably /etc/profile on Linux), hiding every injected CLI from shell tools.
+const CODEX_SHELL_ARGS = ['-c', 'allow_login_shell=false'] as const;
 const CODEX_INTERACTIVE_PERMISSION_ARGS = [
   '--sandbox',
   'danger-full-access',
@@ -276,6 +279,7 @@ export const codexAdapter: CliAdapter = {
       'approval_policy="never"',
       '-c',
       'sandbox_mode="danger-full-access"',
+      ...CODEX_SHELL_ARGS,
       'exec',
     ];
     if (ctx.resume === 'last') return [...head, 'resume', '--json', '--last', prompt];
@@ -298,6 +302,7 @@ export const codexAdapter: CliAdapter = {
       'codex',
       ...(ctx.sessionRuntime?.webArgs ?? ctx.sessionRuntime?.interactiveArgs ?? []),
       ...codexMcpConfigArgs(ctx),
+      ...CODEX_SHELL_ARGS,
       'app-server',
       '--listen',
       'stdio://',
@@ -680,7 +685,7 @@ function codexMcpHead(ctx: SpawnContext): string[] {
         `model_provider=${tomlString(CODEX_PROVIDER_NAME)}`,
       ]
     : [];
-  return ['codex', ...selection, ...CODEX_INTERACTIVE_PERMISSION_ARGS, ...codexMcpConfigArgs(ctx)];
+  return ['codex', ...selection, ...CODEX_INTERACTIVE_PERMISSION_ARGS, ...CODEX_SHELL_ARGS, ...codexMcpConfigArgs(ctx)];
 }
 
 /** `-c mcp_servers.*` overrides that register the launcher's MCP gateway. */
