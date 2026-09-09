@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "id": "alice-color",
+  "name": "Alice · Color",
+  "version": "1.0.0",
+  "stickers": [
+    {
+      "file": "wave.png",
+      "description": "打招呼"
+    },
+    {
+      "file": "goodbye.png",
+      "description": "告别"
+    },
+    {
+      "file": "thanks.png",
+      "description": "感谢"
+    },
+    {
+      "file": "sorry.png",
+      "description": "抱歉"
+    },
+    {
+      "file": "cheer.png",
+      "description": "加油"
+    },
+    {
+      "file": "heart.png",
+      "description": "喜欢与关心"
+    },
+    {
+      "file": "laugh.png",
+      "description": "开心大笑"
+    },
+    {
+      "file": "shocked.png",
+      "description": "惊讶"
+    },
+    {
+      "file": "puff.png",
+      "description": "气鼓鼓"
+    },
+    {
+      "file": "nope.png",
+      "description": "拒绝"
+    },
+    {
+      "file": "wait.png",
+      "description": "稍等"
+    },
+    {
+      "file": "thinking.png",
+      "description": "思考"
+    },
+    {
+      "file": "typing.png",
+      "description": "正在忙"
+    },
+    {
+      "file": "exhausted.png",
+      "description": "疲惫"
+    },
+    {
+      "file": "hungry.png",
+      "description": "饿了"
+    },
+    {
+      "file": "coffee.png",
+      "description": "喝杯咖啡"
+    },
+    {
+      "file": "popcorn.png",
+      "description": "围观"
+    },
+    {
+      "file": "hush.png",
+      "description": "嘘"
+    },
+    {
+      "file": "skeptical.png",
+      "description": "疑惑"
+    },
+    {
+      "file": "celebrate.png",
+      "description": "庆祝"
+    }
+  ]
+}

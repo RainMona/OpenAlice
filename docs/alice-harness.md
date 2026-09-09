@@ -145,3 +145,9 @@ can select that Project through `openalice exec --project <key> alice ...`.
 Project-only requests omit Workspace identity and expose only global registry
 commands. Workspace calls still enforce their CLI preferences. See
 [[docs/cli-supervisor.md]] for resolution and endpoint discovery.
+
+## Optional sticker resources
+
+Chat sticker packs use a separate Project-owned projection and generated Skill.
+They do not participate in this bundle or template Skill upgrades; see
+[[docs/sticker-packs.md]].
