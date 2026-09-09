@@ -139,12 +139,16 @@ function scannerFor(
     resolveAdapter?: ScheduleScannerDeps['resolveAdapter']
     resolveResumeWorkspace?: ScheduleScannerDeps['resolveResumeWorkspace']
     claimFreshSession?: ScheduleScannerDeps['claimFreshSession']
+    canRetryIssueRun?: ScheduleScannerDeps['canRetryIssueRun']
+    isIssueRunning?: ScheduleScannerDeps['isIssueRunning']
     observeIssues?: ScheduleScannerDeps['observeIssues']
   } = {},
 ) {
   const dispatch = vi.fn(opts.dispatch ?? (async () => ({ taskId: 'run-1', resumeId: 'resume-new-worker-a1b2c3' })))
   const markers = opts.markers ?? new FakeMarkers()
   const scanner = new ScheduleScanner({
+    canRetryIssueRun: opts.canRetryIssueRun,
+    isIssueRunning: opts.isIssueRunning,
     registry: {
       list: () => workspaces,
       get: (id: string) => workspaces.find((workspace) => workspace.id === id),
@@ -195,6 +199,21 @@ describe('ScheduleScanner', () => {
     })
   })
 
+  it('rejects a manual run while an occurrence is still running', async () => {
+    const ws = await makeWs('w1', [{ id: 'busy', title: 'Busy', when: { kind: 'every', every: '30m' } }])
+    const { scanner, dispatch, markers } = scannerFor([ws], { isIssueRunning: () => true })
+    await expect(scanner.runIssueNow('w1', 'busy')).rejects.toMatchObject({ code: 'already_running' })
+    expect(dispatch).not.toHaveBeenCalled()
+    expect(markers.get('w1', 'busy')).toBeUndefined()
+  })
+
+  it('revalidates retry lineage under the dispatch guard', async () => {
+    const ws = await makeWs('w1', [{ id: 'daily', title: 'Daily', when: { kind: 'every', every: '30m' } }])
+    const { scanner, dispatch } = scannerFor([ws], { canRetryIssueRun: () => false })
+    await expect(scanner.runIssueNow('w1', 'daily', 'stale-run')).rejects.toMatchObject({ code: 'not_retryable' })
+    expect(dispatch).not.toHaveBeenCalled()
+  })
+
   it('manually retries with live Issue semantics without moving the schedule marker', async () => {
     const ws = await makeWs('w1', [{
       id: 'retry-me',
@@ -205,13 +224,13 @@ describe('ScheduleScanner', () => {
     }])
     const { scanner, dispatch, markers } = scannerFor([ws])
 
-    await expect(scanner.runIssueNow('w1', 'retry-me')).resolves.toEqual({ taskId: 'run-1' })
+    await expect(scanner.runIssueNow('w1', 'retry-me', 'run-failed')).resolves.toEqual({ taskId: 'run-1' })
     expect(dispatch).toHaveBeenCalledWith(
       ws,
       headlessAdapter,
       'same exact prompt',
       undefined,
-      { kind: 'issue', workspaceId: 'w1', issueId: 'retry-me' },
+      { kind: 'issue', workspaceId: 'w1', issueId: 'retry-me', retryOfTaskId: 'run-failed' },
       undefined,
       undefined,
       undefined,
@@ -299,7 +318,7 @@ describe('ScheduleScanner', () => {
         workspaceId: 'w1',
         issueId: 'limited',
         policy: 'new-each-run',
-        fire: 'retry',
+        fire: 'manual',
       },
     )
   })

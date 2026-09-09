@@ -19,6 +19,8 @@ import {
   issueListFactory,
   issueShowFactory,
   issueUpdateFactory,
+  issueRunNowFactory,
+  issueRetryFactory,
 } from './issue-tools.js'
 
 let dir: string
@@ -641,5 +643,44 @@ describe('workspace resolution failures', () => {
     const res = await run(issueListFactory.build(ctx({ resolveWorkspace: () => null })), {})
     expect(res.ok).toBe(false)
     expect(res.error).toMatch(/cannot locate/)
+  })
+})
+
+
+describe('Issue execution tools', () => {
+  function executionContext() {
+    const start = vi.fn(async () => ({ taskId: 'run-new' }))
+    const resolveByName = vi.fn(async () => [{ wsId: 'peer', wsTag: 'desk', id: 'daily', title: 'Daily' }])
+    const read = vi.fn(async () => ({ taskId: 'run-new', status: 'done', resumeId: 'owner', assistantText: 'finished' }))
+    return { start, resolveByName, read, context: ctx({
+      board: { snapshot: vi.fn(), detail: vi.fn(), resolveByName },
+      issueRuns: { start },
+      conversation: { read } as unknown as NonNullable<WorkspaceToolContext['conversation']>,
+    }) }
+  }
+  it('dispatches asynchronously without asking a Session or polling', async () => {
+    const { context, start, read } = executionContext()
+    expect(await run(issueRunNowFactory.build(context), { id: 'daily' })).toMatchObject({ ok: true, taskId: 'run-new', issueId: 'daily' })
+    expect(start).toHaveBeenCalledWith('peer', 'daily', undefined)
+    expect(read).not.toHaveBeenCalled()
+  })
+  it('passes the exact retry occurrence and waits for the dispatched run', async () => {
+    const { context, start, read } = executionContext()
+    expect(await run(issueRetryFactory.build(context), { id: 'daily', runId: 'run-failed', await: true })).toMatchObject({ ok: true, taskId: 'run-new', status: 'done', awaited: true })
+    expect(start).toHaveBeenCalledWith('peer', 'daily', 'run-failed')
+    expect(read).toHaveBeenCalledWith('run-new')
+  })
+  it('rejects ambiguous names before dispatch', async () => {
+    const { context, resolveByName, start } = executionContext()
+    resolveByName.mockResolvedValue([{ wsId: 'a', wsTag: 'a', id: 'daily', title: 'Daily' }, { wsId: 'b', wsTag: 'b', id: 'daily', title: 'Daily' }])
+    expect(await run(issueRunNowFactory.build(context), { id: 'daily' })).toMatchObject({ ok: false })
+    expect(start).not.toHaveBeenCalled()
+    expect(await run(issueRunNowFactory.build(context), { id: 'daily', wsId: 'b' })).toMatchObject({ ok: true })
+    expect(start).toHaveBeenCalledWith('b', 'daily', undefined)
+  })
+  it('preserves scheduler conflict errors without falling back to ask', async () => {
+    const { context, start } = executionContext()
+    start.mockRejectedValue(Object.assign(new Error('Already running'), { code: 'already_running' }))
+    expect(await run(issueRunNowFactory.build(context), { id: 'daily' })).toMatchObject({ ok: false, code: 'already_running' })
   })
 })
