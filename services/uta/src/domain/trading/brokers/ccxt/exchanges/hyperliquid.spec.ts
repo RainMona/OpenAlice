@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import type { Exchange } from 'ccxt'
+import ccxt, { type Exchange } from 'ccxt'
 import {
   hyperliquidOverrides,
   mergeBalanceLedgers,
@@ -61,7 +61,7 @@ describe('hyperliquidOverrides.fetchBalance', () => {
 
     expect(publicPostInfo).toHaveBeenCalledWith({ type: 'userAbstraction', user: '0xmain' })
     expect(impl).toHaveBeenCalledTimes(1)
-    expect(impl.mock.calls[0]![1]).toEqual({ type: 'spot' })
+    expect(impl.mock.calls[0]![1]).toEqual({ type: 'spot', enableUnifiedMargin: false })
     expect(result).toBe(SPOT_LEDGER)
   })
 
@@ -72,7 +72,7 @@ describe('hyperliquidOverrides.fetchBalance', () => {
     const result = await hyperliquidOverrides.fetchBalance!(exchange, undefined, impl)
 
     expect(impl).toHaveBeenCalledTimes(1)
-    expect(impl.mock.calls[0]![1]).toEqual({ type: 'spot' })
+    expect(impl.mock.calls[0]![1]).toEqual({ type: 'spot', enableUnifiedMargin: false })
     expect(result).toBe(SPOT_LEDGER)
   })
 
@@ -82,7 +82,7 @@ describe('hyperliquidOverrides.fetchBalance', () => {
 
     const result = await hyperliquidOverrides.fetchBalance!(exchange, undefined, impl)
 
-    expect(impl.mock.calls.map(c => c[1])).toEqual([{ type: 'swap' }, { type: 'spot' }])
+    expect(impl.mock.calls.map(c => c[1])).toEqual([{ type: 'swap', enableUnifiedMargin: false }, { type: 'spot', enableUnifiedMargin: false }])
     expect(result['USDC']).toEqual({ free: 1100.5, used: 50, total: 1150.5 })
     expect(result['HYPE']).toEqual({ free: 2.5, used: 0, total: 2.5 })
     expect(result['total']).toEqual({ USDC: 1150.5, HYPE: 2.5 })
@@ -105,7 +105,7 @@ describe('hyperliquidOverrides.fetchBalance', () => {
 
     await hyperliquidOverrides.fetchBalance!(exchange, undefined, impl)
 
-    expect(impl.mock.calls[0]![1]).toEqual({ type: 'spot' })
+    expect(impl.mock.calls[0]![1]).toEqual({ type: 'spot', enableUnifiedMargin: false })
   })
 
   it('honors an explicit type selector without consulting userAbstraction', async () => {
@@ -119,25 +119,18 @@ describe('hyperliquidOverrides.fetchBalance', () => {
     expect(result).toBe(PERP_LEDGER)
   })
 
-  it('falls back to ccxt default routing when userAbstraction is unreadable', async () => {
+  it('rejects unreadable mode without fetching a partial ledger', async () => {
     const { exchange } = fakeExchange({ infoError: new Error('ECONNRESET') })
     const impl = ledgerImpl()
-
-    const result = await hyperliquidOverrides.fetchBalance!(exchange, undefined, impl)
-
-    expect(impl).toHaveBeenCalledTimes(1)
-    expect(impl.mock.calls[0]![1]).toBeUndefined()
-    expect((result['info'] as { unscoped?: boolean }).unscoped).toBe(true)
+    await expect(hyperliquidOverrides.fetchBalance!(exchange, undefined, impl)).rejects.toThrow('ECONNRESET')
+    expect(impl).not.toHaveBeenCalled()
   })
 
-  it('falls back to ccxt default routing for an unrecognized mode', async () => {
-    const { exchange } = fakeExchange({ mode: 'someFutureMode' })
+  it.each(['someFutureMode', undefined, {}])('rejects unsupported mode %j', async (mode) => {
+    const { exchange } = fakeExchange({ mode })
     const impl = ledgerImpl()
-
-    await hyperliquidOverrides.fetchBalance!(exchange, undefined, impl)
-
-    expect(impl).toHaveBeenCalledTimes(1)
-    expect(impl.mock.calls[0]![1]).toBeUndefined()
+    await expect(hyperliquidOverrides.fetchBalance!(exchange, undefined, impl)).rejects.toThrow('cannot determine')
+    expect(impl).not.toHaveBeenCalled()
   })
 
   it('prefers params.user over the configured walletAddress', async () => {
@@ -147,7 +140,7 @@ describe('hyperliquidOverrides.fetchBalance', () => {
     await hyperliquidOverrides.fetchBalance!(exchange, { user: '0xvault' }, impl)
 
     expect(publicPostInfo).toHaveBeenCalledWith({ type: 'userAbstraction', user: '0xvault' })
-    expect(impl.mock.calls[0]![1]).toEqual({ user: '0xvault', type: 'spot' })
+    expect(impl.mock.calls[0]![1]).toEqual({ user: '0xvault', type: 'spot', enableUnifiedMargin: false })
   })
 
   it('caches the mode per exchange within the TTL and re-reads after it', async () => {
@@ -190,5 +183,34 @@ describe('mergeBalanceLedgers', () => {
     expect(merged['info']).toEqual({ perp: 'a', spot: 'b' })
     expect(merged['timestamp']).toBe(1)
     expect(merged).not.toHaveProperty('debt')
+  })
+})
+
+// Keep CCXT routing real: mocking fetchBalance hides its independent unified cache.
+describe('Hyperliquid real CCXT routing', () => {
+  it('reads distinct pools after unified mode changes to Standard, despite a stale CCXT cache', async () => {
+    const exchange = new ccxt.hyperliquid({ walletAddress: '0x0000000000000000000000000000000000000001' })
+    let mode = 'unifiedAccount'
+    const requests: string[] = []
+    exchange.publicPostInfo = vi.fn(async (request) => {
+      requests.push(request.type as string)
+      if (request.type === 'userAbstraction') return mode
+      if (request.type === 'spotClearinghouseState') return { balances: [{ coin: 'USDC', total: '1000', hold: '0' }] }
+      if (request.type === 'clearinghouseState') return { marginSummary: { accountValue: '150', totalMarginUsed: '0' } }
+      throw new Error('unexpected request')
+    })
+    const impl = async (ex: Exchange, params?: Record<string, unknown>) => ex.fetchBalance(params) as unknown as Balance
+    exchange.options['enableUnifiedMargin'] = true
+    expect((await hyperliquidOverrides.fetchBalance!(exchange, undefined, impl))['total']).toEqual({ USDC: 1000 })
+    mode = 'disabled'
+    resetAbstractionModeCache(exchange)
+    requests.length = 0
+    expect((await hyperliquidOverrides.fetchBalance!(exchange, undefined, impl))['total']).toEqual({ USDC: 1150 })
+    expect(requests).toEqual(['userAbstraction', 'clearinghouseState', 'spotClearinghouseState'])
+
+    resetAbstractionModeCache(exchange)
+    exchange.publicPostInfo = vi.fn(async () => { throw new Error('503 mode unavailable') })
+    await expect(hyperliquidOverrides.fetchBalance!(exchange, undefined, impl)).rejects.toThrow('503 mode unavailable')
+    expect(exchange.publicPostInfo).toHaveBeenCalledTimes(1)
   })
 })

@@ -39,8 +39,7 @@ export type HyperliquidAbstractionMode = 'unifiedAccount' | 'portfolioMargin' | 
  *  balances and holds in the spot clearinghouse state"). */
 const SPOT_LEDGER_MODES: ReadonlySet<string> = new Set<HyperliquidAbstractionMode>(['unifiedAccount', 'portfolioMargin'])
 
-/** Modes with separate perp and spot pools. Anything else (an unknown future
- *  mode) falls back to ccxt's own routing rather than guessing. */
+/** Modes with separate perp and spot pools. Unknown modes must fail closed. */
 const SPLIT_LEDGER_MODES: ReadonlySet<string> = new Set<HyperliquidAbstractionMode>(['default', 'disabled', 'dexAbstraction'])
 
 /** A wallet's abstraction mode changes only through an explicit user action in
@@ -74,23 +73,17 @@ function resolveUser(exchange: Exchange, params: Record<string, unknown> | undef
   return internals.walletAddress || undefined
 }
 
-/** Query (and cache) the wallet's account-abstraction mode. Returns undefined
- *  when the venue is unreachable or answers with an unexpected shape so the
- *  caller can fall back to ccxt's default routing instead of failing the read. */
-export async function fetchAbstractionMode(exchange: Exchange, user: string): Promise<string | undefined> {
+/** Query and cache the mode. A failed query must not become a partial balance. */
+export async function fetchAbstractionMode(exchange: Exchange, user: string): Promise<string> {
   const cached = abstractionModeCache.get(exchange)
   if (cached && cached.user === user && cached.expiresAt > Date.now()) return cached.mode
-  try {
-    const raw = await (exchange as unknown as HyperliquidExchangeInternals).publicPostInfo({ type: 'userAbstraction', user })
-    // The venue returns a bare JSON string; ccxt hands it over either parsed
-    // ("unifiedAccount") or still quoted ('"unifiedAccount"').
-    const mode = typeof raw === 'string' ? raw.replace(/^"|"$/g, '') : undefined
-    if (!mode) return undefined
-    abstractionModeCache.set(exchange, { user, mode, expiresAt: Date.now() + ABSTRACTION_MODE_TTL_MS })
-    return mode
-  } catch {
-    return undefined
+  const raw = await (exchange as unknown as HyperliquidExchangeInternals).publicPostInfo({ type: 'userAbstraction', user })
+  const mode = typeof raw === 'string' ? raw.replace(/^"|"$/g, '') : undefined
+  if (!mode || (!SPOT_LEDGER_MODES.has(mode) && !SPLIT_LEDGER_MODES.has(mode))) {
+    throw new Error('Hyperliquid: cannot determine account abstraction mode; refusing an incomplete balance')
   }
+  abstractionModeCache.set(exchange, { user, mode, expiresAt: Date.now() + ABSTRACTION_MODE_TTL_MS })
+  return mode
 }
 
 /** Drop any cached mode for this exchange (used by tests and reconnects). */
@@ -163,23 +156,25 @@ export const hyperliquidOverrides: CcxtExchangeOverrides = {
     if (params?.['type'] !== undefined) return await defaultImpl(exchange, params)
 
     const user = resolveUser(exchange, params)
-    const mode = user ? await fetchAbstractionMode(exchange, user) : undefined
+    if (!user) throw new Error('Hyperliquid: balance read requires a wallet address')
+    const mode = await fetchAbstractionMode(exchange, user)
+    // CCXT caches unified routing independently, and it overrides type: swap.
+    // We own routing here: force physical pools and bypass that stale cache.
+    const routedParams = { ...(params ?? {}), enableUnifiedMargin: false }
 
     if (mode !== undefined && SPOT_LEDGER_MODES.has(mode)) {
-      return await defaultImpl(exchange, { ...(params ?? {}), type: 'spot' })
+      return await defaultImpl(exchange, { ...routedParams, type: 'spot' })
     }
     if (mode !== undefined && SPLIT_LEDGER_MODES.has(mode)) {
       // Both pools are authoritative; a partial read would hide real funds
       // behind a plausible number, so either failure propagates.
       const [perp, spot] = await Promise.all([
-        defaultImpl(exchange, { ...(params ?? {}), type: 'swap' }),
-        defaultImpl(exchange, { ...(params ?? {}), type: 'spot' }),
+        defaultImpl(exchange, { ...routedParams, type: 'swap' }),
+        defaultImpl(exchange, { ...routedParams, type: 'spot' }),
       ])
       return mergeBalanceLedgers(perp, spot)
     }
-    // Mode unknown or unreadable: ccxt ≥4.5.43 performs its own
-    // unifiedAccount detection, so its default is the safest fallback.
-    return await defaultImpl(exchange, params)
+    throw new Error('Hyperliquid: unsupported account abstraction mode')
   },
 
   /** Inject a fetched ticker price for market orders, then delegate to default. */
