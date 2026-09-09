@@ -1,4 +1,4 @@
-import { parseReplyDirectives, renderReplyReferences, replyMedia } from './reply-directives.js'
+import { parseReplyDirectives, replyMedia } from './reply-directives.js'
 import type { ConnectorAttachment } from '@traderalice/connector-protocol'
 import { randomUUID } from 'node:crypto'
 import {
@@ -455,13 +455,37 @@ export class DeliveryManager {
           }
         }
       }
-      const text = silent ? '' : renderReplyReferences(message.text ?? '', parsed.references, new Set(resolved.keys()))
-      const outgoing = { ...message, text: text || undefined }
+      const parts: Array<{ text: string } | { path: string; attachment: ConnectorAttachment }> = []
+      let cursor = 0
+      const sent = new Set<string>()
+      const raw = silent ? '' : message.text ?? ''
+      for (const reference of parsed.references) {
+        const attachment = resolved.get(reference.path)
+        if (!attachment) continue
+        const text = raw.slice(cursor, reference.start).trim()
+        if (text) parts.push({ text })
+        if (!sent.has(reference.path)) {
+          parts.push({ path: reference.path, attachment })
+          sent.add(reference.path)
+        }
+        cursor = reference.end
+      }
+      const tail = raw.slice(cursor).trim()
+      if (tail) parts.push({ text: tail })
+      // Finish the transport's live reply once, then preserve the remaining media/text order.
+      const first = parts[0]
+      const text = first && 'text' in first ? first.text : ''
+      if (text) parts.shift()
       if (!silent || message.phase !== 'progress') {
-        if (adapter.sendOwnerChat) await adapter.sendOwnerChat(outgoing)
+        if (adapter.sendOwnerChat) await adapter.sendOwnerChat({ ...message, text: text || undefined })
         else if (message.phase !== 'accepted' && text) await adapter.sendOwnerText(text)
       }
-      for (const [path, attachment] of resolved) {
+      for (const part of parts) {
+        if ('text' in part) {
+          await adapter.sendOwnerText(part.text)
+          continue
+        }
+        const { path, attachment } = part
         try {
           const presentation = replyMedia(path)
           await adapter.sendOwnerFile!(attachment, presentation)
