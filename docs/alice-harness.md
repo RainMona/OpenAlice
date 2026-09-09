@@ -71,7 +71,7 @@ revision and with its CLI disabled.
 
 Project Settings → Workspace injection owns the Project CLI catalog, source Skills
 browser, Workspace update inventory and batch updates. Batch updates use the
-displayed digests and skip busy/conflicting entries; each Workspace succeeds or
+displayed digests and skip checkout-blocked/conflicting entries; each Workspace succeeds or
 fails independently. Workspace details owns CLI/Skill preferences and a link to
 Project management. Unversioned matching files need only a baseline/version
 record; differing files enter the same update review. The Project catalog API is `/api/workspaces/alice-harness/catalog`. Per-Workspace
@@ -80,8 +80,13 @@ APIs are `/api/workspaces/:id/alice-harness`,
 The CLI offers `alice harness upgrade` and `alice harness upgrade --apply`, with
 `--id` for a peer and the same per-file conflict flags as template upgrades.
 
-The shared managed-file engine provides checkout serialization, active-Session
-and staged-index blockers, exact preview digests, atomic file replacements,
+Skill updates, including scoped install/remove/restore, are allowed during active
+interactive, Web and headless Sessions. Existing model context is not reloaded;
+an agent must reread changed Skills to use the new instructions. Template/source
+upgrades and CLI configuration writes retain their separate activity checks.
+
+The shared managed-file engine provides checkout serialization and staged-index
+blockers, exact preview digests, atomic file replacements,
 Git commit, rollback and committed-transaction recovery. Configuration is part
 of the preview digest and never overwritten by upgrade. Both upgrade layers
 recover before scheduled work starts.
