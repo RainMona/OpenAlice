@@ -2,87 +2,87 @@
   "schemaVersion": 1,
   "id": "alice-ink",
   "name": "Alice · Ink",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "stickers": [
     {
       "file": "wave.png",
-      "description": "打招呼"
+      "description": "Greeting / saying hello"
     },
     {
       "file": "goodbye.png",
-      "description": "告别"
+      "description": "Saying goodbye"
     },
     {
       "file": "thanks.png",
-      "description": "感谢"
+      "description": "Thanks / appreciation"
     },
     {
       "file": "sorry.png",
-      "description": "抱歉"
+      "description": "Apology / feeling sorry"
     },
     {
       "file": "cheer.png",
-      "description": "加油"
+      "description": "Encouragement / cheering on"
     },
     {
       "file": "heart.png",
-      "description": "喜欢与关心"
+      "description": "Affection / caring"
     },
     {
       "file": "laugh.png",
-      "description": "开心大笑"
+      "description": "Laughter / amusement"
     },
     {
       "file": "shocked.png",
-      "description": "惊讶"
+      "description": "Surprise / shock"
     },
     {
       "file": "puff.png",
-      "description": "气鼓鼓"
+      "description": "Playful frustration / pouting"
     },
     {
       "file": "nope.png",
-      "description": "拒绝"
+      "description": "Refusal / saying no"
     },
     {
       "file": "wait.png",
-      "description": "稍等"
+      "description": "Wait a moment"
     },
     {
       "file": "thinking.png",
-      "description": "思考"
+      "description": "Thinking / considering"
     },
     {
       "file": "typing.png",
-      "description": "正在忙"
+      "description": "Busy / working"
     },
     {
       "file": "exhausted.png",
-      "description": "疲惫"
+      "description": "Exhaustion / needing rest"
     },
     {
       "file": "hungry.png",
-      "description": "饿了"
+      "description": "Feeling hungry"
     },
     {
       "file": "coffee.png",
-      "description": "喝杯咖啡"
+      "description": "Coffee break"
     },
     {
       "file": "popcorn.png",
-      "description": "围观"
+      "description": "Watching with interest"
     },
     {
       "file": "hush.png",
-      "description": "嘘"
+      "description": "Hush / keeping quiet"
     },
     {
       "file": "skeptical.png",
-      "description": "疑惑"
+      "description": "Skepticism / doubt"
     },
     {
       "file": "celebrate.png",
-      "description": "庆祝"
+      "description": "Celebration / success"
     }
   ]
 }

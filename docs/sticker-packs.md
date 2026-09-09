@@ -4,7 +4,8 @@ An Alice Project supplies sticker prototypes independently of Alice Harness Skil
 and Workspace template releases. Chat Workspaces project the selected images to
 flat `sticker/<name>.png` or `.webp` paths and generate
 `.agents/skills/alice-stickers/SKILL.md` with a byte-identical Claude mirror. The
-Skill lists installed filenames and their meanings. Nothing is added to
+Skill lists installed filenames and their meanings. Bundled meanings are written
+in English for agent consumption; imported descriptions retain the author’s text. Nothing is added to
 `AGENTS.md`, `CLAUDE.md`, system prompts, or the normal Alice Harness Skill bundle.
 Native agents discover this optional Skill through their existing mechanism.
 This is a Workspace-level capability, including any agents that share that
