@@ -61,6 +61,7 @@ export const DEFAULT_INTERVAL_MS = 60_000
 export type ScheduledIssueRunNowErrorCode =
   | 'not_found'
   | 'not_scheduled'
+  | 'not_retryable'
   | 'not_fireable'
   | 'already_running'
 
@@ -90,6 +91,8 @@ export interface ScheduleScannerDeps {
   registry: WorkspaceRegistry
   /** Resolve the execution Workspace for an exact signed Session owner. */
   resolveResumeWorkspace?: (resumeId: string) => WorkspaceMeta | undefined
+  canRetryIssueRun?: (wsId: string, issueId: string, runId: string) => boolean
+  isIssueRunning?: (wsId: string, issueId: string) => boolean
   resolveAdapter: (meta: WorkspaceMeta, agentId?: string, resumeId?: string) => CliAdapter | Promise<CliAdapter>
   dispatch: (
     meta: WorkspaceMeta,
@@ -169,7 +172,7 @@ export class ScheduleScanner {
    * marker. This is the authoritative manual-run / retry path: it re-reads the
    * live Issue and reuses the exact prompt, owner, runtime, and optional timeout used by
    * the scanner, while preserving the next scheduled occurrence. */
-  async runIssueNow(wsId: string, issueId: string): Promise<{ taskId: string }> {
+  async runIssueNow(wsId: string, issueId: string, retryOfTaskId?: string): Promise<{ taskId: string }> {
     const ws = this.deps.registry.get(wsId)
     if (!ws) throw new ScheduledIssueRunNowError('not_found', 'Workspace not found.')
 
@@ -211,6 +214,8 @@ export class ScheduleScanner {
       issueTimeoutMs(issue.timeout),
       issue.connectorDesk,
       true,
+      undefined,
+      retryOfTaskId,
     )
     return { taskId: result.taskId }
   }
@@ -416,6 +421,7 @@ export class ScheduleScanner {
     connectorDesk?: string,
     manual = false,
     commentId?: string,
+    retryOfTaskId?: string,
   ): Promise<{ taskId: string; resumeId: string }> {
     const dispatchKey = `${issueWorkspace.id}:${issueId}`
     if (this.dispatchingIssues.has(dispatchKey)) {
@@ -429,6 +435,12 @@ export class ScheduleScanner {
     }
     this.dispatchingIssues.add(dispatchKey)
     try {
+      if (this.deps.isIssueRunning?.(issueWorkspace.id, issueId)) {
+        throw new ScheduledIssueRunNowError('already_running', 'This Issue already has a run in progress.')
+      }
+      if (retryOfTaskId && this.deps.canRetryIssueRun && !this.deps.canRetryIssueRun(issueWorkspace.id, issueId, retryOfTaskId)) {
+        throw new ScheduledIssueRunNowError('not_retryable', 'The failed run is no longer this Issue’s latest occurrence.')
+      }
       // A scan or comment may have read the file before another dispatch claimed it.
       // Resolve ownership again while holding the shared dispatch exclusion.
       if (claimFreshSession || commentId) {
@@ -459,6 +471,7 @@ export class ScheduleScanner {
       }
       const trigger: HeadlessTaskTrigger | undefined = commentId ? undefined : {
         kind: 'issue',
+        ...(retryOfTaskId ? { retryOfTaskId } : {}),
         workspaceId: issueWorkspace.id,
         issueId,
         ...(connectorDesk
@@ -478,7 +491,7 @@ export class ScheduleScanner {
             workspaceId: issueWorkspace.id,
             issueId,
             policy: claimFreshSession ? 'new-then-resume' : 'new-each-run',
-            fire: commentId ? 'comment' : manual ? 'retry' : 'schedule',
+            fire: commentId ? 'comment' : manual ? (retryOfTaskId ? 'retry' : 'manual') : 'schedule',
           }
       const inquiry: HeadlessTaskInquiry | undefined = commentId ? {
         subject: { kind: 'issue', workspaceId: issueWorkspace.id, issueId, relation: 'owner', commentId },

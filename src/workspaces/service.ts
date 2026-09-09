@@ -568,8 +568,9 @@ export interface WorkspaceService {
    *  headless run history, newest first). `null` when the workspace or the issue
    *  id is absent. Powers GET /api/issues/:wsId/:id. */
   issueDetail(wsId: string, id: string): Promise<IssueDetail | null>;
-  /** Retry the latest unsuccessful scheduled execution now. Reuses the live
-   * Issue prompt/owner/runtime and never advances its schedule marker. */
+  /** Start a manual run or retry an exact failed occurrence; return its task id. */
+  startIssueRun(wsId: string, id: string, retryRunId?: string): Promise<{ taskId: string }>;
+  /** Retry the latest unsuccessful scheduled execution without moving its marker. */
   retryIssue(wsId: string, id: string): Promise<IssueDetail>;
   /** Dispatch a scheduled Issue immediately without requiring a failed last
    * run and without advancing its next-fire marker. */
@@ -2251,6 +2252,11 @@ export async function createWorkspaceService(opts: CreateWorkspaceServiceOptions
     launcherLogger.child({ scope: 'schedule-markers' }),
   );
   const scheduleScanner = new ScheduleScanner({
+    canRetryIssueRun: (workspaceId, issueId, runId) => {
+      const latest = headlessTasks.list({ issue: { workspaceId, issueId } })[0];
+      return latest?.taskId === runId && (latest.status === 'failed' || latest.status === 'interrupted');
+    },
+    isIssueRunning: (workspaceId, issueId) => headlessTasks.list({ issue: { workspaceId, issueId } }).some((run) => run.status === 'running'),
     registry,
     resolveResumeWorkspace: (resumeId) => {
       const identity = resumeRegistry.get(resumeId);
@@ -2549,7 +2555,8 @@ export async function createWorkspaceService(opts: CreateWorkspaceServiceOptions
     wsId: string,
     id: string,
     kind: 'retry' | 'manual',
-  ): Promise<IssueDetail> => {
+    retryRunId?: string,
+  ): Promise<{ taskId: string }> => {
     const key = `${wsId}:${id}`;
     const ws = registry.get(wsId);
     if (!ws) throw new IssueRetryError('not_found', 'Workspace not found.');
@@ -2567,8 +2574,12 @@ export async function createWorkspaceService(opts: CreateWorkspaceServiceOptions
         `This Issue is ${issue.status}; reopen it before running.`,
       );
     }
-    const latest = headlessTasks.list({ issue: { workspaceId: wsId, issueId: id } })[0];
-    if (latest?.status === 'running' || retryingIssueKeys.has(key)) {
+    const runs = headlessTasks.list({ issue: { workspaceId: wsId, issueId: id } });
+    const latest = runs[0];
+    if (retryRunId && latest?.taskId !== retryRunId) {
+      throw new IssueRetryError('not_retryable', 'Retry must target this Issue’s latest failed or interrupted run.');
+    }
+    if (runs.some((run) => run.status === 'running') || retryingIssueKeys.has(key)) {
       throw new IssueRetryError('already_running', 'This Issue already has a run in progress.');
     }
     if (kind === 'retry' && (!latest || (latest.status !== 'failed' && latest.status !== 'interrupted'))) {
@@ -2580,13 +2591,14 @@ export async function createWorkspaceService(opts: CreateWorkspaceServiceOptions
 
     retryingIssueKeys.add(key);
     try {
-      const { taskId } = await scheduleScanner.runIssueNow(wsId, id);
+      const { taskId } = await scheduleScanner.runIssueNow(wsId, id, kind === 'retry' ? latest?.taskId : undefined);
       launcherLogger.info(kind === 'retry' ? 'issue.retry_dispatched' : 'issue.manual_run_dispatched', {
         wsId,
         issueId: id,
         previousTaskId: latest?.taskId,
         taskId,
       });
+      return { taskId };
     } catch (err) {
       if (err instanceof ScheduledIssueRunNowError) {
         throw new IssueRetryError(err.code, err.message);
@@ -2596,14 +2608,17 @@ export async function createWorkspaceService(opts: CreateWorkspaceServiceOptions
       retryingIssueKeys.delete(key);
     }
 
+  };
+  const startIssueRun = (wsId: string, id: string, retryRunId?: string) =>
+    dispatchScheduledIssueNow(wsId, id, retryRunId ? 'retry' : 'manual', retryRunId);
+  const issueRunDetail = async (wsId: string, id: string, kind: 'retry' | 'manual'): Promise<IssueDetail> => {
+    await dispatchScheduledIssueNow(wsId, id, kind);
     const detail = await issueDetail(wsId, id);
     if (!detail) throw new IssueRetryError('not_found', 'Issue not found.');
     return detail;
   };
-  const retryIssue = async (wsId: string, id: string): Promise<IssueDetail> =>
-    dispatchScheduledIssueNow(wsId, id, 'retry');
-  const runIssueNow = async (wsId: string, id: string): Promise<IssueDetail> =>
-    dispatchScheduledIssueNow(wsId, id, 'manual');
+  const retryIssue = (wsId: string, id: string) => issueRunDetail(wsId, id, 'retry');
+  const runIssueNow = (wsId: string, id: string) => issueRunDetail(wsId, id, 'manual');
 
   const setSessionPresence = async (input: {
     wsId: string
@@ -3322,6 +3337,7 @@ export async function createWorkspaceService(opts: CreateWorkspaceServiceOptions
     createTelegramConnectorDesk: async (wsId: string) => createConnectorDeskOp('telegram', wsId),
     updateTelegramConnectorDesk: async (patch) => updateConnectorDeskOp('telegram', patch),
     disableTelegramConnectorDesk: async () => disableConnectorDeskOp('telegram'),
+    startIssueRun,
     retryIssue,
     runIssueNow,
     replyToIssue: (input) => scheduleScanner.runIssueComment(input),

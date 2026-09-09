@@ -246,6 +246,7 @@ export interface WorkspaceToolContext {
     detail(wsId: string, id: string): Promise<IssueDetail | null>
     resolveByName(name: string): Promise<WikilinkIssueRef[]>
   }
+  issueRuns?: { start(wsId: string, id: string, retryRunId?: string): Promise<{ taskId: string }> }
   /** Safe current-Workspace template preview/apply surface. */
   templateUpgrades?: WorkspaceTemplateUpgradeControl
   aliceHarnessUpgrades?: WorkspaceTemplateUpgradeControl

@@ -172,6 +172,7 @@ export class McpPlugin implements Plugin {
         } : {}),
         ...(svc
           ? {
+              issueRuns: { start: (w: string, i: string, r?: string) => svc.startIssueRun(w, i, r) },
               board: {
                 snapshot: () => svc.issuesSnapshot(),
                 detail: (w: string, i: string) => svc.issueDetail(w, i),

@@ -352,8 +352,10 @@ Headless runs may overlap with interactive sessions or other runs in the same
 checkout. Agents must tolerate concurrent edits. The launcher currently admits
 at most eight headless processes globally and serializes registry persistence,
 but there is no per-Workspace exclusive lock. One small dispatch-start guard
-prevents a Run now / Retry now click and a schedule tick from launching the same
-Issue at the same instant; it is released as soon as the run is registered.
+prevents Run now / Retry now, CLI calls and a schedule tick from launching the
+same Issue at the same instant; it is released as soon as the run is registered.
+The shared dispatch path also rejects a new occurrence while that Issue still
+has a running task. Other Issues in the same Workspace remain independent.
 
 Offboarding is the lifecycle exception: a Workspace with a live headless run
 cannot depart. Once its Catalog row enters `offboarding`, new dispatch is
@@ -529,3 +531,18 @@ pnpm test
 For UI changes, run strict UI types and verify Issue board, issue detail,
 Activity comments/replies, the independent Runs section, schedule projection,
 and linked Inbox reports in the real browser surface.
+
+## Manual execution from CLI
+
+`alice issue run --id <id>` uses the same Run now dispatch as the Issue page.
+`alice issue retry --id <id> --run-id <taskId>` requires the latest failed or
+interrupted run of that Issue. Both resolve names on the global board; duplicate
+names require `--ws-id`. They return the exact dispatched `taskId`; `--await`
+waits for completion through the conversation reader. No prompt/runtime override
+is accepted. Current scheduled Issue semantics and next-fire markers are preserved.
+
+Retry persists `trigger.retryOfTaskId`, exposed by Issue run history as
+`retryOfTaskId`, independently of conversation `parentTaskId`. Existing records
+without that optional field have unknown retry lineage. Active Issue runs and
+dispatch-start races are rejected, including schedule ticks; there is no force
+override that launches concurrent turns against the same owner.
