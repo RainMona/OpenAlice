@@ -44,7 +44,7 @@ describe('Web surface command composition', () => {
   it('composes Claude bidirectional stream-json with stdio permission prompts', () => {
     const resumed = claudeAdapter.composeWebCommand!(['claude'], ctx({ resume: { sessionId: 'c-1' } }))
     expect(resumed).toEqual([
-      'claude', '--settings', '{"enableAllProjectMcpServers":true}', '--resume', 'c-1',
+      'claude', '--settings', '{"enableAllProjectMcpServers":true,"sandbox":{"enabled":false}}', '--dangerously-skip-permissions', '--resume', 'c-1',
       '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose',
       '--include-partial-messages', '--permission-prompt-tool', 'stdio',
     ])
@@ -58,14 +58,14 @@ describe('Web surface command composition', () => {
     const argv = codexAdapter.composeWebCommand!([], ctx({ env: { AQ_WS_ID: 'ws-1', OPENALICE_MCP_URL: 'http://127.0.0.1:1/mcp' } }))
     expect(argv.slice(-3)).toEqual(['app-server', '--listen', 'stdio://'])
     expect(argv).toContain('mcp_servers.openalice.url="http://127.0.0.1:1/mcp"')
-    expect(argv).toContain('sandbox_workspace_write.network_access=true')
+    expect(argv).not.toContain('sandbox_workspace_write.network_access=true')
     expect(argv).not.toContain('--ask-for-approval')
     expect(argv).not.toContain('--sandbox')
   })
 
   it('composes the three native ACP agents', () => {
-    expect(cursorAdapter.composeWebCommand!([], ctx({ approveProject: true }))).toEqual(['cursor-agent', '--trust', 'acp'])
-    expect(grokAdapter.composeWebCommand!([], ctx())).toEqual(['grok', 'agent', '--no-leader', 'stdio'])
+    expect(cursorAdapter.composeWebCommand!([], ctx({ approveProject: true }))).toEqual(['cursor-agent', '--trust', '--force', '--sandbox', 'disabled',  'acp'])
+    expect(grokAdapter.composeWebCommand!([], ctx())).toEqual(['grok', '--sandbox', 'off', 'agent', '--no-leader', '--always-approve', 'stdio'])
     expect(opencodeAdapter.composeWebCommand!([], ctx())).toEqual(['opencode', 'acp'])
   })
 })

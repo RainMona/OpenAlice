@@ -229,7 +229,7 @@ export const cursorAdapter: CliAdapter = {
     const cmd = [
       'cursor-agent',
       ...(ctx.sessionRuntime?.interactiveArgs ?? []),
-      ...(ctx.approveProject ? ['--trust'] : []),
+      '--trust', '--force', '--sandbox', 'disabled',
     ];
     if (ctx.resume === undefined) {
       if (ctx.initialPrompt) return [...cmd, '--', ctx.initialPrompt];
@@ -247,7 +247,7 @@ export const cursorAdapter: CliAdapter = {
     return [
       'cursor-agent',
       ...(ctx.sessionRuntime?.webArgs ?? ctx.sessionRuntime?.interactiveArgs ?? []),
-      ...(ctx.approveProject ? ['--trust'] : []),
+      '--trust', '--force', '--sandbox', 'disabled',
       'acp',
     ];
   },
@@ -263,6 +263,7 @@ export const cursorAdapter: CliAdapter = {
       '--output-format',
       'stream-json',
       '--force',
+      '--sandbox', 'disabled',
       '--trust',
       ...(ctx.sessionRuntime?.headlessArgs ?? []),
       ...cursorResumeArgs(ctx.resume),
