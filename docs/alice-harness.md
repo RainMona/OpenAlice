@@ -153,6 +153,30 @@ The setting is a per-launch override, including resumes, not a user-config or
 Skill rewrite. Verify CLI discovery inside the agent's shell, not just its
 parent process environment.
 
+Cursor's Bash/Zsh snapshot has the same precedence hazard: the login profile
+can select a global `alice` even when Workspace routing variables survive.
+The Cursor adapter restores the composed PATH through
+`__CURSOR_SANDBOX_ENV_RESTORE`, evaluated after snapshot restoration in Cursor
+`2026.09.08-6caf4ff`. This is a vendor-internal integration, not a public Cursor
+configuration promise; revalidate it on runtime upgrades. Native Windows is
+excluded. No user shell profile is rewritten.
+
+### Headless CLI acceptance
+
+Exercise the actual Workspace headless API with default shell options. Check
+both the exact `command -v alice` path and a read such as
+`alice issue list --limit 1`; exit zero alone can hide a stale global binary.
+Do not supply PATH/login overrides in acceptance. Inspect normalized errors as
+well as process exit codes: Pi can exit zero after a provider authentication
+failure, and `headlessTaskStatus` correctly marks that outcome failed.
+
+The 2026-09-09 audit exercised Codex, Pi and OpenCode on the Linux SSH Runtime,
+and Grok, OMP and Cursor on macOS. Codex's non-login setting and Cursor's PATH
+restoration address the observed failures. Local Claude was unauthenticated;
+Antigravity returned an execution error before tool use. Those runs do not
+establish CLI acceptance and require working native access before retesting.
+This is dated acceptance evidence, not a permanent runtime compatibility claim.
+
 ## Optional sticker resources
 
 Chat sticker packs use a separate Project-owned projection and generated Skill.
