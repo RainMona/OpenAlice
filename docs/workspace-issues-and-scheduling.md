@@ -121,8 +121,10 @@ The filename stem is the stable issue id. Frontmatter:
   queue; other connectors flush independently. Scheduled-fire
   `assistantText` is stamped as a comment. Scheduler and Run now / Retry now
   executions of this Issue carry `trigger.metadata.kind: connector-cron-issue`.
-  Only comments and progress from a run with that metadata consume
-  `[[no-reply]]`; ordinary chat mentions of the syntax are delivered as text.
+  Alice forwards source context with raw comments and progress. Connector
+  consumes `[[no-reply]]` for automation (including CLI comments from an Issue
+  run); ordinary chat and code examples remain literal. Reply file markers
+  are also Connector-owned; see [[docs/connector-service.md]].
   Connector does not echo comments that arrived from that connector.
   While a desk turn is running, it also ships sealed mid-turn `text` blocks —
   the last consecutive text before a tool or error — and never ships tool I/O.

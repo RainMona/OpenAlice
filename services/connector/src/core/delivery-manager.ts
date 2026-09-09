@@ -1,3 +1,5 @@
+import { parseReplyDirectives } from './reply-directives.js'
+import type { ConnectorAttachment } from '@traderalice/connector-protocol'
 import { randomUUID } from 'node:crypto'
 import {
   CONNECTOR_ACTION_TTL_MS,
@@ -43,6 +45,7 @@ import {
 } from './work-queue.js'
 
 export interface DeliveryManagerOptions {
+  readWorkspaceFile?(workspaceId: string, path: string): Promise<ConnectorAttachment>
   registry: ConnectorRegistry
   config: ConnectorConfig
   updateAdapterSettings(id: string, patch: Record<string, string | number | boolean>): Promise<void>
@@ -63,6 +66,8 @@ export const DEFAULT_ADAPTER_START_RETRY_DELAY_MS = 5_000
 const MAX_ADAPTER_START_RETRY_DELAY_MS = 60_000
 
 export class DeliveryManager {
+  private readonly replyDeliveries = new Map<string, Promise<void>>()
+  private readonly replyQueues = new Map<string, Promise<void>>()
   private readonly adapters = new Map<string, ConnectorAdapter>()
   private readonly commands = new Map<string, CommandRegistry>()
   private readonly bootRetries = new Map<string, ReturnType<typeof setTimeout>>()
@@ -406,6 +411,22 @@ export class DeliveryManager {
   }
 
   async sendOwnerChat(message: OwnerChatMessage, correlationId = message.id): Promise<void> {
+    const key = `${message.adapterId}:${message.id}:${message.phase}`
+    const existing = this.replyDeliveries.get(key)
+    if (existing) return existing
+    const queueKey = `${message.adapterId}:${message.conversationId}`
+    const operation = (this.replyQueues.get(queueKey) ?? Promise.resolve()).catch(() => undefined)
+      .then(() => this.deliverOwnerChat(message, correlationId))
+    this.replyDeliveries.set(key, operation)
+    this.replyQueues.set(queueKey, operation)
+    try { await operation } finally {
+      if (this.replyQueues.get(queueKey) === operation) this.replyQueues.delete(queueKey)
+      // Retain completed IDs, including uncertain network failures, to avoid duplicate uploads.
+      if (this.replyDeliveries.size > 1000) this.replyDeliveries.delete(this.replyDeliveries.keys().next().value!)
+    }
+  }
+
+  private async deliverOwnerChat(message: OwnerChatMessage, correlationId: string): Promise<void> {
     const adapter = this.adapters.get(message.adapterId)
     if (!adapter) throw new Error(`Connector is not running: ${message.adapterId}`)
     await this.record({
@@ -421,10 +442,34 @@ export class DeliveryManager {
       },
     })
     try {
-      if (adapter.sendOwnerChat) {
-        await adapter.sendOwnerChat(message)
-      } else if (message.phase !== 'accepted' && message.text) {
-        await adapter.sendOwnerText(message.text)
+      const parsed = parseReplyDirectives(message.text ?? '')
+      const silent = message.source === 'automation' && parsed.silent
+      const text = silent ? '' : parsed.text
+      const outgoing = { ...message, text: text || undefined }
+      // A silent progress update leaves the existing activity indicator running.
+      if (!silent || message.phase !== 'progress') {
+        if (adapter.sendOwnerChat) await adapter.sendOwnerChat(outgoing)
+        else if (message.phase !== 'accepted' && text) await adapter.sendOwnerText(text)
+      }
+      if (!silent && message.phase === 'final') {
+        for (const path of parsed.files.slice(0, 5)) {
+          try {
+            if (!message.workspaceId || !this.options.readWorkspaceFile) throw new Error('Workspace file access is unavailable')
+            if (!adapter.sendOwnerFile) throw new Error('This connector does not support reply attachments')
+            const attachment = await this.options.readWorkspaceFile(message.workspaceId, path)
+            await adapter.sendOwnerFile(attachment)
+            await this.record({
+              correlationId, direction: 'outbound', stage: 'delivery.succeeded', connectorId: adapter.id,
+              payload: { kind: 'reply-file', filename: attachment.filename, mediaType: attachment.mediaType,
+                sizeBytes: attachment.sizeBytes, contentSha256: attachment.contentSha256 },
+            })
+          } catch {
+            await this.record({ correlationId, direction: 'outbound', stage: 'delivery.failed', connectorId: adapter.id,
+              payload: { kind: 'reply-file', path, reason: 'file-read-or-upload-failed' } })
+            await adapter.sendOwnerText(`Could not send file: ${path}. Check that it exists inside this Workspace, is at most 1 MiB, and the connector supports files.`)
+          }
+        }
+        if (parsed.files.length > 5) await adapter.sendOwnerText('Only the first 5 reply attachments were sent. Send the remaining files in another reply.')
       }
       await this.record({
         correlationId,

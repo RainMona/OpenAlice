@@ -19,20 +19,8 @@ import {
   type IssueRecord,
 } from './declaration.js'
 
-export const TELEGRAM_NO_REPLY_TAG = '[[no-reply]]'
-
 const MAX_PROGRESS_SCOPES = 64
 const sentByScope = new Map<string, Set<string>>()
-
-export function containsTelegramNoReply(text: string): boolean {
-  return text.includes(TELEGRAM_NO_REPLY_TAG)
-}
-
-export function consumesConnectorNoReply(
-  metadata: HeadlessTaskTriggerMetadata | undefined,
-): boolean {
-  return metadata?.kind === 'connector-cron-issue'
-}
 
 export function normalizeDeskText(text: string): string {
   return text.trim().slice(0, OWNER_CHAT_TEXT_MAX)
@@ -48,7 +36,7 @@ export function normalizeDeskText(text: string): string {
  */
 export function sealedProgressTexts(
   progress: HeadlessTurnProgress,
-  metadata?: HeadlessTaskTriggerMetadata,
+  _metadata?: HeadlessTaskTriggerMetadata,
 ): string[] {
   const sealed: string[] = []
   const { blocks } = progress
@@ -58,7 +46,7 @@ export function sealedProgressTexts(
     const next = blocks[i + 1]
     if (!next || next.type === 'text') continue
     const text = normalizeDeskText(block.text)
-    if (!text || (consumesConnectorNoReply(metadata) && containsTelegramNoReply(text))) continue
+    if (!text) continue
     sealed.push(text)
   }
   return sealed
@@ -124,6 +112,7 @@ export function shouldProjectDeskComment(
   comment: IssueComment,
   opts?: {
     /** Derived from the caller's server-owned Issue run, never tool arguments. */
+    workspaceId?: string
     automated?: boolean
     phase?: 'progress' | 'final'
     progressScopeId?: string
@@ -131,10 +120,6 @@ export function shouldProjectDeskComment(
   },
 ): boolean {
   if (!isConnectorDeskIssue(issue) || comment.via) return false
-  if (
-    (opts?.automated === true || consumesConnectorNoReply(opts?.triggerMetadata))
-    && containsTelegramNoReply(comment.markdown)
-  ) return false
   return true
 }
 
@@ -144,6 +129,7 @@ export async function projectDeskComment(
   client: ConnectorClient = new ConnectorClient(resolveConnectorUrl()),
   opts?: {
     /** Derived from the caller's server-owned Issue run, never tool arguments. */
+    workspaceId?: string
     automated?: boolean
     phase?: 'progress' | 'final'
     progressScopeId?: string
@@ -154,18 +140,14 @@ export async function projectDeskComment(
   try {
     if (!isConnectorDeskIssue(issue) || comment.via || !issue.connectorDesk) return
     const phase = opts?.phase ?? 'final'
-    const visible = shouldProjectDeskComment(issue, comment, {
-      progressScopeId: scope,
-      triggerMetadata: opts?.triggerMetadata,
-      automated: opts?.automated,
-    })
-    if (!visible && phase === 'progress') return
     await client.sendOwnerMessage({
       id: `desk-${comment.id}`,
       adapterId: issue.connectorDesk,
       conversationId: scope ?? comment.id,
       phase,
-      ...(visible ? { text: normalizeDeskText(comment.markdown) } : {}),
+      text: normalizeDeskText(comment.markdown) || undefined,
+      workspaceId: opts?.workspaceId,
+      source: opts?.automated || opts?.triggerMetadata?.kind === 'connector-cron-issue' ? 'automation' : 'conversation',
     }, AbortSignal.timeout(5_000))
   } finally {
     if (scope && opts?.phase !== 'progress') forgetProjectedDeskTexts(scope)
@@ -189,6 +171,7 @@ export async function projectDeskTurnProgress(input: {
       adapterId: input.issue.connectorDesk,
       conversationId: input.scopeId,
       phase: 'progress',
+      source: input.triggerMetadata?.kind === 'connector-cron-issue' ? 'automation' : 'conversation',
       text,
     }, AbortSignal.timeout(5_000))
     markProjectedDeskText(input.scopeId, text)
