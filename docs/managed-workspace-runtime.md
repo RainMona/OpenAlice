@@ -279,8 +279,11 @@ separate checks before the upgrade journey launches the candidate.
 
 `asarUnpack` explicitly retains node-pty and dugite's embedded Git under
 `app.asar.unpacked`, with other native dependencies handled by builder's
-native-module detection. The package assertion verifies archive contents,
-physical native files, runtime resources and matching product versions.
+native-module detection. node-pty's compiler intermediates (`build/**/obj/`,
+`.exp`, `.iobj`, `.ipdb`, `.lib`, `.pdb`, `.tlog`) are excluded from the
+package; only its `.node`, `.dll` and `.exe` outputs are runtime payload. The
+package assertion verifies archive contents, physical native files, runtime
+resources, the absence of those intermediates and matching product versions.
 Contributors who run `pnpm vendor:runtime` also get the generated search-tool
 directory on `pnpm dev`'s managed PATH; dev startup never downloads or mutates
 that payload implicitly.
