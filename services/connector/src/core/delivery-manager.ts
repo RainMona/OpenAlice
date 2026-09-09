@@ -1,4 +1,4 @@
-import { parseReplyDirectives } from './reply-directives.js'
+import { parseReplyDirectives, renderReplyReferences, replyMedia } from './reply-directives.js'
 import type { ConnectorAttachment } from '@traderalice/connector-protocol'
 import { randomUUID } from 'node:crypto'
 import {
@@ -444,32 +444,37 @@ export class DeliveryManager {
     try {
       const parsed = parseReplyDirectives(message.text ?? '')
       const silent = message.source === 'automation' && parsed.silent
-      const text = silent ? '' : parsed.text
+      const resolved = new Map<string, ConnectorAttachment>()
+      if (!silent && message.phase === 'final' && message.workspaceId && this.options.readWorkspaceFile && adapter.sendOwnerFile) {
+        for (const path of [...new Set(parsed.references.map(reference => reference.path))].slice(0, 20)) {
+          if (resolved.size >= 5) break
+          try {
+            resolved.set(path, await this.options.readWorkspaceFile(message.workspaceId, path))
+          } catch {
+            // A reference can be a discussion of a nonexistent path. Keep it literal.
+          }
+        }
+      }
+      const text = silent ? '' : renderReplyReferences(message.text ?? '', parsed.references, new Set(resolved.keys()))
       const outgoing = { ...message, text: text || undefined }
-      // A silent progress update leaves the existing activity indicator running.
       if (!silent || message.phase !== 'progress') {
         if (adapter.sendOwnerChat) await adapter.sendOwnerChat(outgoing)
         else if (message.phase !== 'accepted' && text) await adapter.sendOwnerText(text)
       }
-      if (!silent && message.phase === 'final') {
-        for (const path of parsed.files.slice(0, 5)) {
-          try {
-            if (!message.workspaceId || !this.options.readWorkspaceFile) throw new Error('Workspace file access is unavailable')
-            if (!adapter.sendOwnerFile) throw new Error('This connector does not support reply attachments')
-            const attachment = await this.options.readWorkspaceFile(message.workspaceId, path)
-            await adapter.sendOwnerFile(attachment)
-            await this.record({
-              correlationId, direction: 'outbound', stage: 'delivery.succeeded', connectorId: adapter.id,
-              payload: { kind: 'reply-file', filename: attachment.filename, mediaType: attachment.mediaType,
-                sizeBytes: attachment.sizeBytes, contentSha256: attachment.contentSha256 },
-            })
-          } catch {
-            await this.record({ correlationId, direction: 'outbound', stage: 'delivery.failed', connectorId: adapter.id,
-              payload: { kind: 'reply-file', path, reason: 'file-read-or-upload-failed' } })
-            await adapter.sendOwnerText(`Could not send file: ${path}. Check that it exists inside this Workspace, is at most 1 MiB, and the connector supports files.`)
-          }
+      for (const [path, attachment] of resolved) {
+        try {
+          const presentation = replyMedia(path)
+          await adapter.sendOwnerFile!(attachment, presentation)
+          await this.record({
+            correlationId, direction: 'outbound', stage: 'delivery.succeeded', connectorId: adapter.id,
+            payload: { kind: 'reply-file', presentation, filename: attachment.filename, mediaType: attachment.mediaType,
+              sizeBytes: attachment.sizeBytes, contentSha256: attachment.contentSha256 },
+          })
+        } catch {
+          await this.record({ correlationId, direction: 'outbound', stage: 'delivery.failed', connectorId: adapter.id,
+            payload: { kind: 'reply-file', path, reason: 'upload-failed' } })
+          await adapter.sendOwnerText(`Could not send file: ${path}. Upload failed; please try again.`)
         }
-        if (parsed.files.length > 5) await adapter.sendOwnerText('Only the first 5 reply attachments were sent. Send the remaining files in another reply.')
       }
       await this.record({
         correlationId,
