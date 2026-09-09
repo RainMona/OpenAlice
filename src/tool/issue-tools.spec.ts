@@ -697,7 +697,7 @@ it('carries trusted run scope into in-turn desk comments', async () => {
       taskId: 'run-live', status: 'running', trigger: { kind: 'issue', workspaceId: 'ws-self', issueId: 'desk' },
     } })), { id: 'desk', text: '[[no-reply]] quiet' })
     expect(project).toHaveBeenCalledWith(expect.anything(), expect.anything(), undefined, {
-      progressScopeId: 'run-live', phase: 'progress', automated: true,
+      workspaceId: 'ws-self', progressScopeId: 'run-live', phase: 'progress', automated: true,
     })
   } finally { project.mockRestore() }
 })

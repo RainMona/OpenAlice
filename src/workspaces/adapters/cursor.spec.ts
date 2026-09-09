@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -42,6 +43,18 @@ describe('cursor session layout', () => {
 });
 
 describe('cursor composeCommand', () => {
+  it.skipIf(process.platform === 'win32')('restores injected PATH after a login snapshot without evaluating path contents', () => {
+    const path = `/tmp/alice tools/it's-$(echo BAD)-\`echo BAD\`:/usr/bin:/bin`;
+    const env = cursorAdapter.composeEnv!(ctx({ env: {
+      PATH: path,
+      __CURSOR_SANDBOX_ENV_RESTORE: 'export OA_TEST_EXISTING=kept',
+    } }));
+    const output = execFileSync('/bin/bash', ['-c',
+      'PATH=/usr/bin:/bin; eval "$__CURSOR_SANDBOX_ENV_RESTORE"; printf "%s\\n%s" "$PATH" "$OA_TEST_EXISTING"',
+    ], { env, encoding: 'utf8' });
+    expect(output).toBe(`${path}\nkept`);
+  });
+
   it('seeds a fresh TUI with a trailing `-- <prompt>` and never goes headless', () => {
     const argv = cursorAdapter.composeCommand(['claude'], ctx({ initialPrompt: PROMPT }));
     expect(argv[0]).toBe('cursor-agent');

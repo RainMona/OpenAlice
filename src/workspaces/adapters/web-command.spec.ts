@@ -20,6 +20,23 @@ const ctx = (overrides: Partial<SpawnContext> = {}): SpawnContext => ({
 const webAdapters: readonly CliAdapter[] = [piAdapter, ompAdapter, claudeAdapter, codexAdapter, cursorAdapter, grokAdapter, opencodeAdapter]
 
 describe('Web surface command composition', () => {
+  it.each([undefined, { sessionId: 'codex-existing' }] as const)(
+    'keeps injected CLI PATH for fresh and resumed Codex on every surface (%j)', (resume) => {
+      const context = ctx({ resume })
+      const commands = [
+        codexAdapter.composeCommand([], context),
+        codexAdapter.composeHeadlessCommand!([], context, 'read only'),
+        codexAdapter.composeWebCommand!([], context),
+      ]
+      for (const argv of commands) {
+        const index = argv.indexOf('allow_login_shell=false')
+        expect(index).toBeGreaterThan(0)
+        expect(argv[index - 1]).toBe('-c')
+        expect(argv.filter(arg => arg === 'allow_login_shell=false')).toHaveLength(1)
+      }
+    },
+  )
+
   it('declares a wire for every adapter that composes a Web command, and vice versa', () => {
     for (const adapter of webAdapters) {
       expect(adapter.capabilities.web, adapter.id).toBeDefined()

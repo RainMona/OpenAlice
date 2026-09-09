@@ -1,3 +1,4 @@
+import { stickerHandlers } from './stickers'
 import { http, HttpResponse } from 'msw'
 import type { AliceHarnessConfig } from '../../hooks/useAliceHarness'
 import {
@@ -421,6 +422,7 @@ const demoHarnessConfigs = new Map<string, AliceHarnessConfig>()
 const demoHarnessCommands = { alice: ['rss', 'market', 'analysis', 'peer', 'inbox', 'issue', 'harness'], traderhub: ['equity', 'economy'], 'alice-uta': ['account', 'order'] }
 
 export const workspacesHandlers = [
+  ...stickerHandlers,
   http.get('/api/workspaces/auto-quant/default-workspace', () => {
     const workspace = demoAutoQuantDefaultWorkspaceId
       ? demoWorkspaces.find((candidate) =>

@@ -437,6 +437,7 @@ export const issueCommentFactory: WorkspaceToolFactory = {
           const run = ctx.callerRun
           const scope = run ? deskProgressScope(run) : null
           await projectDeskComment(res.issue, res.comment, undefined, {
+            workspaceId: ctx.workspaceId,
             ...(scope?.workspaceId === ctx.workspaceId && scope.issueId === id
               ? { progressScopeId: scope.scopeId } : {}),
             automated: run?.trigger?.kind === 'issue',

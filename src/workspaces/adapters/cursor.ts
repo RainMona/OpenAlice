@@ -272,6 +272,20 @@ export const cursorAdapter: CliAdapter = {
     ];
   },
 
+  composeEnv(ctx: SpawnContext): Record<string, string> {
+    if (process.platform === 'win32' || !ctx.env['PATH']) return {};
+    // Cursor 2026.09.08 snapshots a login shell, then evaluates this hook
+    // after restoring that snapshot in Bash/Zsh (including print/ACP mode).
+    // Keep Alice's already-resolved CLI/toolchain precedence over host profiles.
+    // This is a vendor-internal seam; retain live shell acceptance on upgrades.
+    const path = `'${ctx.env['PATH'].replace(/'/g, `'"'"'`)}'`;
+    const inherited = ctx.env['__CURSOR_SANDBOX_ENV_RESTORE']?.trim();
+    return {
+      __CURSOR_SANDBOX_ENV_RESTORE: [inherited, `builtin export PATH=${path}`]
+        .filter(Boolean).join('; '),
+    };
+  },
+
   extractHeadlessSessionId(line: string): string | null {
     const evt = parseJsonRecord(line);
     return evt && typeof evt['session_id'] === 'string' ? evt['session_id'] : null;

@@ -13,6 +13,38 @@
  */
 
 export const en = {
+  stickers: {
+    "meaning": "Meaning (optional)",
+    "title": "Stickers",
+    "hint": "Project-owned expressions, available to Chat through an optional Skill. No extra AGENTS.md instructions.",
+    "importHint": "Select PNG/WebP images, up to 512 KiB each and 32 MiB total. Optionally describe each image. Reuse an ID to publish a new version.",
+    "workspaceHint": "New Chat Workspaces use the default pack. Existing Workspaces change only when you apply a selection.",
+    "empty": "No Chat Workspaces yet.",
+    "default": "Default",
+    "available": "Available version",
+    "makeDefault": "Use for new Chats",
+    "workspaces": "Chat Workspaces",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "missing": "Skill missing",
+    "notInstalled": "Not installed",
+    "changed": "{{count}} files missing or modified",
+    "restore": "Update / restore",
+    "usePack": "Use {{name}}",
+    "disable": "Disable",
+    "review": "Review sticker files",
+    "reviewEnable": "Install the selected images and matching Skill. Other Workspace files are preserved.",
+    "reviewDisable": "Remove the Sticker Skill and its Claude mirror. Images stay. Existing conversations may remember previous instructions.",
+    "conflicts": "These files have local changes. Only previously managed files can be explicitly replaced.",
+    "unowned": "Unmanaged file: rename or move it first",
+    "replaceManaged": "Replace managed changes",
+    "apply": "Apply",
+    "packName": "Pack name",
+    "packId": "Pack ID",
+    "version": "Version",
+    "images": "Choose images",
+    "import": "Import pack"
+},
   aliceHarness: {
     "unversioned": "Not recorded",
     "manage": "Manage",
