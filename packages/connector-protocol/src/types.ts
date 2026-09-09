@@ -201,6 +201,8 @@ export const ownerChatMessageSchema = z.object({
   adapterId: z.string().min(1),
   conversationId: z.string().min(1),
   phase: ownerChatPhaseSchema,
+  workspaceId: z.string().min(1).max(128).optional(),
+  source: z.enum(['conversation', 'automation']).optional(),
   text: z.string().min(1).max(OWNER_CHAT_TEXT_MAX).optional(),
 }).superRefine((message, ctx) => {
   if (message.phase !== 'accepted' && message.phase !== 'final' && !message.text) {

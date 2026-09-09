@@ -184,11 +184,15 @@ export class TelegramConnectorAdapter implements ConnectorAdapter {
   }
 
   async deliverArtifact(delivery: ConnectorArtifactDelivery): Promise<void> {
+    return this.sendOwnerFile(delivery.attachment)
+  }
+
+  async sendOwnerFile(attachment: ConnectorArtifactDelivery['attachment']): Promise<void> {
     if (!this.bot || !this.sessionReady) throw new Error('Telegram bot is not ready')
     if (!this.chatId) throw new Error('Telegram private chat is not linked')
     this.tracker.attempt()
     try {
-      const file = decodeConnectorAttachment(delivery.attachment)
+      const file = decodeConnectorAttachment(attachment)
       await this.bot.api.sendDocument(
         this.chatId,
         new InputFile(file.content, file.filename),

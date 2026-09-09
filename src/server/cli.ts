@@ -1,3 +1,4 @@
+import { registerWorkspaceFileRoutes } from './workspace-files.js'
 import { registerProjectCliRoutes } from './project-cli.js'
 /**
  * CLI gateway — the third adapter over the tool registry.
@@ -65,7 +66,10 @@ type WsMeta = { id: string; tag: string; dir?: string }
 /** Mount /cli/:wsId/:export/* onto an existing Hono app (the MCP server's app). */
 export function registerCliRoutes(app: Hono, deps: CliGatewayDeps, manifestOnly = false): void {
   const { toolCenter, workspaceToolCenter, inboxStore, entityStore, getWorkspaceService } = deps
-  if (!manifestOnly) registerProjectCliRoutes(app, toolCenter)
+  if (!manifestOnly) {
+    registerProjectCliRoutes(app, toolCenter)
+    registerWorkspaceFileRoutes(app, id => getWorkspaceService()?.registry.get(id))
+  }
 
   /** Resolve + validate the workspace from the URL path. */
   const resolveWs = (wsId: string): { meta: WsMeta } | { error: 'unavailable' | 'unknown' } => {
