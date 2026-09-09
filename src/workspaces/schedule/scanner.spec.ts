@@ -132,14 +132,7 @@ async function makeWs(id: string, issues: IssueSpec[]): Promise<WorkspaceMeta> {
 function scannerFor(
   workspaces: WorkspaceMeta[],
   opts: {
-    dispatch?: (
-      m: WorkspaceMeta,
-      a: CliAdapter,
-      p: string,
-      t?: number,
-      trigger?: import('../headless-task-registry.js').HeadlessTaskTrigger,
-      resumeId?: string,
-    ) => Promise<{ taskId: string; resumeId: string }>
+    dispatch?: ScheduleScannerDeps['dispatch']
     markers?: MarkerStore
     now?: number
     adapter?: CliAdapter
@@ -149,7 +142,7 @@ function scannerFor(
     observeIssues?: ScheduleScannerDeps['observeIssues']
   } = {},
 ) {
-  const dispatch = opts.dispatch ?? vi.fn(async () => ({ taskId: 'run-1', resumeId: 'resume-new-worker-a1b2c3' }))
+  const dispatch = vi.fn(opts.dispatch ?? (async () => ({ taskId: 'run-1', resumeId: 'resume-new-worker-a1b2c3' })))
   const markers = opts.markers ?? new FakeMarkers()
   const scanner = new ScheduleScanner({
     registry: {
@@ -772,5 +765,46 @@ describe('ScheduleScanner', () => {
     const { scanner } = scannerFor([ws], { markers })
     await scanner.scan()
     expect(markers.get('w1', 'removed')).toBeUndefined()
+  })
+})
+
+describe('comment owner handoff', () => {
+  it('uses the Issue runtime, claims once, and preserves the schedule marker', async () => {
+    const spec: IssueSpec = { id: 'desk', title: 'Desk', when: { kind: 'every', every: '4h' },
+      assignee: '@new-then-resume', agent: 'codex', credentialSource: 'native', model: 'gpt-5.6-sol', effort: 'medium' }
+    const ws = await makeWs('w1', [spec])
+    const claimFreshSession = vi.fn(async ({ resumeId }: { resumeId: string }) => {
+      await writeFile(join(ws.dir, '.alice/issues/desk.md'), issueMd({ ...spec, assignee: '@' + resumeId, agent: undefined, credentialSource: undefined, model: undefined, effort: undefined }))
+    })
+    const { scanner, dispatch, markers } = scannerFor([ws], { claimFreshSession })
+    await scanner.runIssueComment({ workspaceId: 'w1', issueId: 'desk', prompt: 'Hello', commentId: 'c1' })
+    const first = dispatch.mock.calls[0]
+    expect(first[4]).toBeUndefined() // never a cron turn: no no-reply suppression
+    expect(first[5]).toBeUndefined()
+    expect(first[6]).toMatchObject({ subject: { relation: 'owner', commentId: 'c1' } })
+    expect(first[7]).toMatchObject({ credentialSource: 'native', model: 'gpt-5.6-sol', reasoningEffort: 'medium' })
+    expect(first[9]).toMatchObject({ kind: 'issue', fire: 'comment', policy: 'new-then-resume' })
+    expect(claimFreshSession).toHaveBeenCalledTimes(1)
+    expect(markers.get('w1', 'desk')).toBeUndefined()
+    await scanner.runIssueComment({ workspaceId: 'w1', issueId: 'desk', prompt: 'Again', commentId: 'c2' })
+    expect(dispatch.mock.calls[1][5]).toBe('resume-new-worker-a1b2c3')
+    expect(claimFreshSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('excludes a scheduled fire while the comment is creating the owner', async () => {
+    const ws = await makeWs('w1', [{ id: 'desk', title: 'Desk', when: { kind: 'every', every: '4h' }, assignee: '@new-then-resume' }])
+    let release!: () => void
+    let entered!: () => void
+    const started = new Promise<void>((resolve) => { entered = resolve })
+    const held = new Promise<void>((resolve) => { release = resolve })
+    const dispatch = vi.fn(async () => { entered(); await held; return { taskId: 'run-1', resumeId: 'resume-new' } })
+    const { scanner, markers } = scannerFor([ws], { dispatch, claimFreshSession: async () => undefined })
+    const comment = scanner.runIssueComment({ workspaceId: 'w1', issueId: 'desk', prompt: 'Hello', commentId: 'c1' })
+    await started
+    await scanner.scan()
+    expect(dispatch).toHaveBeenCalledTimes(1)
+    expect(markers.get('w1', 'desk')).toBeUndefined()
+    release()
+    await comment
   })
 })

@@ -30,7 +30,7 @@ import type { CliAdapter } from '../cli-adapter.js'
 import type { SessionRuntimeSelection } from '../session-runtime-binding.js'
 import type { Logger } from '../logger.js'
 import type { WorkspaceMeta, WorkspaceRegistry } from '../workspace-registry.js'
-import type { HeadlessTaskTrigger } from '../headless-task-registry.js'
+import type { HeadlessTaskInquiry, HeadlessTaskTrigger } from '../headless-task-registry.js'
 import type { SessionCreatedBy } from '../session-metadata.js'
 
 import {
@@ -101,7 +101,7 @@ export interface ScheduleScannerDeps {
     /** Product Session to continue. Omitted means allocate a fresh Session. */
     resumeId?: string,
     /** Optional reverse-link metadata; scheduler leaves this absent. */
-    inquiry?: undefined,
+    inquiry?: HeadlessTaskInquiry,
     /** Fresh-Session credential/model/effort selection inherited from Issue frontmatter. */
     selection?: SessionRuntimeSelection,
     conversation?: undefined,
@@ -200,7 +200,7 @@ export class ScheduleScanner {
       }
     }
 
-    return this.dispatchIssue(
+    const result = await this.dispatchIssue(
       ws,
       issue.id,
       issueFirePrompt(issue),
@@ -212,6 +212,15 @@ export class ScheduleScanner {
       issue.connectorDesk,
       true,
     )
+    return { taskId: result.taskId }
+  }
+
+  /** Comments share the scheduler's dispatch/claim exclusion, without advancing its clock. */
+  async runIssueComment(input: { workspaceId: string; issueId: string; prompt: string; commentId: string }): Promise<{ taskId: string; resumeId: string }> {
+    const ws = this.deps.registry.get(input.workspaceId)
+    if (!ws) throw new Error('Workspace not found.')
+    return this.dispatchIssue(ws, input.issueId, input.prompt, undefined, undefined, undefined,
+      false, undefined, undefined, true, input.commentId)
   }
 
   private arm(): void {
@@ -406,7 +415,8 @@ export class ScheduleScanner {
     timeoutMs?: number,
     connectorDesk?: string,
     manual = false,
-  ): Promise<{ taskId: string }> {
+    commentId?: string,
+  ): Promise<{ taskId: string; resumeId: string }> {
     const dispatchKey = `${issueWorkspace.id}:${issueId}`
     if (this.dispatchingIssues.has(dispatchKey)) {
       if (manual) {
@@ -419,6 +429,24 @@ export class ScheduleScanner {
     }
     this.dispatchingIssues.add(dispatchKey)
     try {
+      // A scan or comment may have read the file before another dispatch claimed it.
+      // Resolve ownership again while holding the shared dispatch exclusion.
+      if (claimFreshSession || commentId) {
+        const read = await readWorkspaceIssues(issueWorkspace.dir)
+        const live = read.ok ? read.issues.find((issue) => issue.id === issueId) : undefined
+        if (!live) throw new Error('Issue not found.')
+        resumeId = issueAssigneeResumeId(live.assignee) ?? undefined
+        claimFreshSession = issueAssigneeClaimsFirstSession(live.assignee)
+        if (!resumeId && !claimFreshSession && live.assignee !== '@new-each-run') {
+          throw new Error('Issue ownership changed; no Agent owner is selected.')
+        }
+        agentId = live.agent
+        selection = issueRunOverrides(live)
+        timeoutMs = issueTimeoutMs(live.timeout)
+        if (commentId && !resumeId) {
+          what = `Issue ${issueId}: ${live.title}\n${live.what}\n\nHistory: .alice/issues/${issueId}.comments.json\n\n${what}`
+        }
+      }
       const executionWorkspace = resumeId
         ? this.resolveResumeWorkspace(resumeId)
         : issueWorkspace
@@ -429,7 +457,7 @@ export class ScheduleScanner {
       if (!adapter.capabilities.headless || !adapter.composeHeadlessCommand) {
         throw new Error(`agent runtime does not support headless work: ${adapter.id}`)
       }
-      const trigger: HeadlessTaskTrigger = {
+      const trigger: HeadlessTaskTrigger | undefined = commentId ? undefined : {
         kind: 'issue',
         workspaceId: issueWorkspace.id,
         issueId,
@@ -450,9 +478,17 @@ export class ScheduleScanner {
             workspaceId: issueWorkspace.id,
             issueId,
             policy: claimFreshSession ? 'new-then-resume' : 'new-each-run',
-            fire: manual ? 'retry' : 'schedule',
+            fire: commentId ? 'comment' : manual ? 'retry' : 'schedule',
           }
-      const result = resumeId
+      const inquiry: HeadlessTaskInquiry | undefined = commentId ? {
+        subject: { kind: 'issue', workspaceId: issueWorkspace.id, issueId, relation: 'owner', commentId },
+        question: what,
+        resolution: { mode: resumeId ? 'exact' : 'reconstructed' },
+      } : undefined
+      const result = inquiry
+        ? await this.deps.dispatch(executionWorkspace, adapter, what, timeoutMs, undefined,
+            resumeId, inquiry, selection, undefined, createdBy)
+        : resumeId
         ? selection
           ? await this.deps.dispatch(
               executionWorkspace,
@@ -530,7 +566,7 @@ export class ScheduleScanner {
         runId: result.taskId,
         manual,
       })
-      return { taskId: result.taskId }
+      return result
     } finally {
       this.dispatchingIssues.delete(dispatchKey)
     }

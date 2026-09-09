@@ -172,8 +172,12 @@ structured run log remain durable. Inbox inquiries expose the same shape on the 
 Issue Activity and Inbox reply threads render that same field as a compact
 live timeline: semantic text, tool name/status, and errors. They do not fetch
 `/output` or show tool payloads. The Telegram phone desk
-already projects sealed `text` blocks from that same field. A human comment without a fixed owner
-uses the same provenance-aware fallback as Inbox: OpenAlice asks the
+already projects sealed `text` blocks from that same field. A human comment on
+`@new-then-resume` recruits and claims the first Session using the Issue's
+Agent, credential, model, and effort, sharing dispatch exclusion with scheduled
+fires. `@new-each-run` comments recruit fresh workers without claiming ownership.
+These comments never fall back to an earlier creator, and do not advance the
+schedule marker. Ordinary unassigned/human-owned Issue comments use the same provenance-aware fallback as Inbox: OpenAlice asks the
 attributable creator, or recruits a reconstruction Agent in the Issue
 Workspace when no creator Session exists. The answer is recorded in Activity
 without changing `assignee`; a temporary answerer never becomes the scheduling

@@ -125,7 +125,7 @@ describe('telegram desk ingest and stamp', () => {
     const { client, sent } = mockClient()
     const result = await ingestTelegramOwnerMessage(host({
       conversation: () => ({
-        ask: async () => ({ status: 'accepted', taskId: 'run-1', resumeId: 'resume-1' }),
+        replyToIssue: async () => ({ taskId: 'run-1', resumeId: 'resume-1' }),
       } as unknown as NonNullable<ReturnType<TelegramDeskChatHost['conversation']>>),
     }), {
       connectorId: 'telegram',

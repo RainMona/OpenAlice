@@ -42,8 +42,9 @@ export function issueCommentReplyPrompt(input: {
 
 /**
  * A fixed Issue owner is a real colleague: comments from somebody else are
- * delivered to that exact product Session. Human comments on Issues without a
- * fixed owner use the same provenance-aware fallback as Inbox: continue the
+ * delivered to that exact product Session. Fresh-owner policies recruit via
+ * the shared Issue dispatcher. Human comments on ordinary unassigned Issues
+ * use the same provenance-aware fallback as Inbox: continue the
  * creator when attributable, otherwise recruit a reconstruction worker in the
  * Issue Workspace. That answering Session is a collaborator, not a new owner;
  * the Issue assignee and scheduling contract stay unchanged.
@@ -78,6 +79,16 @@ export async function dispatchIssueCommentReply(input: {
   }
 
   try {
+    if (input.issue.assignee === '@new-then-resume' || input.issue.assignee === '@new-each-run') {
+      if (!input.conversation.replyToIssue) throw new Error('Issue owner recruitment is unavailable in this runtime.')
+      const result = await input.conversation.replyToIssue({
+        workspaceId: input.issueWorkspaceId,
+        issueId: input.issue.id,
+        prompt: issueCommentReplyPrompt(input),
+        commentId: input.comment.id,
+      })
+      return { status: 'scheduled', delivery: { state: 'pending', targetResumeId: result.resumeId, taskId: result.taskId } }
+    }
     const target = targetResumeId
       ? { kind: 'resume' as const, resumeId: targetResumeId }
       : {
