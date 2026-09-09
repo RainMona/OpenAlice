@@ -175,7 +175,8 @@ describe('telegram desk ingest and stamp', () => {
     })
     expect(comment?.markdown).toContain('[[no-reply]]')
     expect(comment?.id).toBe('comment-fire-run-1')
-    expect(sent).toEqual([])
+    expect(sent).toEqual([expect.objectContaining({ phase: 'final', conversationId: 'run-1' })])
+    expect(sent[0]).not.toHaveProperty('text')
     if (!comment) return
     expect(shouldProjectDeskComment(created.issue, comment, {
       triggerMetadata: { kind: 'connector-cron-issue', connectorId: 'telegram' },

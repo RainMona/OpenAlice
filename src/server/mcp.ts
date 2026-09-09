@@ -183,6 +183,7 @@ export class McpPlugin implements Plugin {
         // Agent-invisible run provenance from the out-of-band header (resolved
         // server-side from the authoritative registry). Absent → undefined.
         ...(origin ? { origin } : {}),
+        ...(origin?.kind === 'headless' && origin.runId && svc ? { callerRun: svc.headlessTasks.get(origin.runId) ?? undefined } : {}),
       })
       const mcp = new McpServer({ name: 'open-alice-workspace', version: '1.0.0' })
       for (const [name, t] of Object.entries(tools)) {

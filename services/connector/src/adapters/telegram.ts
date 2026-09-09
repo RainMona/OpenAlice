@@ -61,6 +61,7 @@ const MAX_FINISHED_DRAFTS = 128
 interface TelegramDraftSession {
   draftId: number
   markdown?: string
+  refreshedAt?: number
   typingFallback: boolean
   stopped: boolean
   pending: Promise<void>
@@ -723,6 +724,7 @@ export class TelegramConnectorAdapter implements ConnectorAdapter {
       this.drafts.set(conversationId, session)
     }
     session.markdown = markdown
+    session.refreshedAt = undefined
     try {
       await this.queueDraftRefresh(conversationId, session)
     } finally {
@@ -742,10 +744,12 @@ export class TelegramConnectorAdapter implements ConnectorAdapter {
   private async refreshDraft(session: TelegramDraftSession): Promise<void> {
     if (!this.bot || !this.sessionReady) throw new Error('Telegram bot is not ready')
     const chatId = telegramNumericChatId(this.chatId)
-    if (session.typingFallback) {
-      await this.bot.api.sendChatAction(chatId, 'typing')
-      return
-    }
+    // A text draft is content, not a durable working indicator. Keep typing alive
+    // through tool calls and long pauses until the authoritative terminal event.
+    await this.bot.api.sendChatAction(chatId, 'typing')
+    if (session.refreshedAt !== undefined && Date.now() - session.refreshedAt < TELEGRAM_DRAFT_HEARTBEAT_MS) return
+    session.refreshedAt = Date.now()
+    if (session.typingFallback) return
     try {
       if (session.markdown) {
         await this.bot.api.sendRichMessageDraft(chatId, session.draftId, { markdown: session.markdown })
@@ -768,7 +772,6 @@ export class TelegramConnectorAdapter implements ConnectorAdapter {
       }
       console.warn('[connector] Telegram live draft fell back to typing:', formatAdapterError(error))
       session.typingFallback = true
-      await this.bot.api.sendChatAction(chatId, 'typing')
     }
   }
 
@@ -796,7 +799,7 @@ export class TelegramConnectorAdapter implements ConnectorAdapter {
   private armDraftHeartbeat(conversationId: string, session: TelegramDraftSession): void {
     if (session.stopped || this.drafts.get(conversationId) !== session) return
     if (session.timer) clearTimeout(session.timer)
-    const delay = session.typingFallback ? TELEGRAM_TYPING_HEARTBEAT_MS : TELEGRAM_DRAFT_HEARTBEAT_MS
+    const delay = TELEGRAM_TYPING_HEARTBEAT_MS
     session.timer = setTimeout(() => {
       void this.queueDraftRefresh(conversationId, session).catch((error) => {
         this.tracker.degraded(error)

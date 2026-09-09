@@ -123,13 +123,16 @@ export function shouldProjectDeskComment(
   issue: { connectorDesk?: string },
   comment: IssueComment,
   opts?: {
+    /** Derived from the caller's server-owned Issue run, never tool arguments. */
+    automated?: boolean
+    phase?: 'progress' | 'final'
     progressScopeId?: string
     triggerMetadata?: HeadlessTaskTriggerMetadata
   },
 ): boolean {
   if (!isConnectorDeskIssue(issue) || comment.via) return false
   if (
-    consumesConnectorNoReply(opts?.triggerMetadata)
+    (opts?.automated === true || consumesConnectorNoReply(opts?.triggerMetadata))
     && containsTelegramNoReply(comment.markdown)
   ) return false
   return true
@@ -140,25 +143,32 @@ export async function projectDeskComment(
   comment: IssueComment,
   client: ConnectorClient = new ConnectorClient(resolveConnectorUrl()),
   opts?: {
+    /** Derived from the caller's server-owned Issue run, never tool arguments. */
+    automated?: boolean
+    phase?: 'progress' | 'final'
     progressScopeId?: string
     triggerMetadata?: HeadlessTaskTriggerMetadata
   },
 ): Promise<void> {
   const scope = opts?.progressScopeId ?? comment.replyTo
   try {
-    if (!shouldProjectDeskComment(issue, comment, {
+    if (!isConnectorDeskIssue(issue) || comment.via || !issue.connectorDesk) return
+    const phase = opts?.phase ?? 'final'
+    const visible = shouldProjectDeskComment(issue, comment, {
       progressScopeId: scope,
       triggerMetadata: opts?.triggerMetadata,
-    }) || !issue.connectorDesk) return
+      automated: opts?.automated,
+    })
+    if (!visible && phase === 'progress') return
     await client.sendOwnerMessage({
       id: `desk-${comment.id}`,
       adapterId: issue.connectorDesk,
       conversationId: scope ?? comment.id,
-      phase: 'final',
-      text: normalizeDeskText(comment.markdown),
+      phase,
+      ...(visible ? { text: normalizeDeskText(comment.markdown) } : {}),
     }, AbortSignal.timeout(5_000))
   } finally {
-    if (scope) forgetProjectedDeskTexts(scope)
+    if (scope && opts?.phase !== 'progress') forgetProjectedDeskTexts(scope)
   }
 }
 

@@ -58,7 +58,7 @@ import {
   type IssueComment,
 } from '../workspaces/issues/comments.js'
 import { dispatchIssueCommentReply } from '../workspaces/issues/comment-delivery.js'
-import { projectDeskComment } from '../workspaces/issues/telegram-desk-project.js'
+import { deskProgressScope, projectDeskComment } from '../workspaces/issues/telegram-desk-project.js'
 import { issueMutation, issueMutationFingerprint } from '../workspaces/issues/change-tracker.js'
 import {
   NEW_THEN_RESUME_ASSIGNEE,
@@ -434,7 +434,15 @@ export const issueCommentFactory: WorkspaceToolFactory = {
             ...(origin ? { authorResumeId: origin.resumeId } : {}),
             source: origin ?? { kind: 'workspace', workspaceId: ctx.workspaceId },
           })
-          await projectDeskComment(res.issue, res.comment).catch(() => undefined)
+          const run = ctx.callerRun
+          const scope = run ? deskProgressScope(run) : null
+          await projectDeskComment(res.issue, res.comment, undefined, {
+            ...(scope?.workspaceId === ctx.workspaceId && scope.issueId === id
+              ? { progressScopeId: scope.scopeId } : {}),
+            automated: run?.trigger?.kind === 'issue',
+            ...(run?.status === 'running' && scope?.workspaceId === ctx.workspaceId && scope.issueId === id
+              ? { phase: 'progress' as const } : {}),
+          }).catch(() => undefined)
           if (dispatched.status !== 'not_requested') {
             const updated = await updateIssueCommentDelivery(
               dir.dir,

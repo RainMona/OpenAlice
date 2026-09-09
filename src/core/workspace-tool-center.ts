@@ -35,7 +35,7 @@ import type { ArtifactRef, SessionOrigin } from './provenance-store.js'
 import type { IssuesSnapshot, IssueDetail, WikilinkIssueRef } from '../workspaces/issues/board.js'
 import type { WorkspaceSessionDirectory } from '../workspaces/session-directory.js'
 import type { HeadlessStructuredOutput } from '../workspaces/headless-output.js'
-import type { HeadlessInquirySubject, HeadlessTaskStatus } from '../workspaces/headless-task-registry.js'
+import type { HeadlessTaskRecord, HeadlessInquirySubject, HeadlessTaskStatus } from '../workspaces/headless-task-registry.js'
 import type {
   ApplyTemplateUpgradeInput,
   TemplateUpgradePlan,
@@ -233,6 +233,7 @@ export interface WorkspaceToolContext {
    *  agent). Factories pass it through to call sites (e.g. inbox_push →
    *  inboxStore.append) so a pushed entry self-links to its originating run /
    *  issue. Absent (interactive session, or no header) → undefined. */
+  callerRun?: Pick<HeadlessTaskRecord, 'taskId' | 'status' | 'trigger' | 'inquiry'>
   origin?: InboxOrigin
   /** GLOBAL issue-board reader — the cross-workspace board the
    *  `alice` CLI surfaces (issue_list / issue_show read EVERY
