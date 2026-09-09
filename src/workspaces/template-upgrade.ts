@@ -532,7 +532,8 @@ export class TemplateUpgradeManager {
       headless: [],
     };
     const blockers: string[] = [];
-    if (activity.busy) blockers.push('active_sessions');
+    // Skill projections are live documents; running agents do not lock their updates.
+    if (activity.busy && !this.opts.aliceHarness) blockers.push('active_sessions');
     if ((await stagedPaths(workspace.dir)).length > 0) blockers.push('staged_changes');
     const fromVersion = state?.template === template.name
       ? state.appliedVersion
