@@ -97,8 +97,9 @@ The filename stem is the stable issue id. Frontmatter:
 - `effort` — optional one-run reasoning effort:
   `none | minimal | low | medium | high | xhigh | max`. The chosen runtime must
   expose that level; omission inherits its Workspace/native default.
-- `timeout` — optional scheduled-run watchdog: `15m | 30m | 45m | 60m`. Omission
-  means no limit: the headless child runs until the agent exits. This is a run
+- `timeout` — optional scheduled-run and comment-reply watchdog: `15m | 30m | 45m | 60m`. Omission
+  means no limit: the headless child runs until the agent exits. Comment replies
+  have no separate fixed five-minute cap. This is a run
   budget, not Session birth, so an exact `@resumeId` owner may still set it.
 - `commentPrompt` — optional template for the Input Prompt sent when a comment
   needs a reply. Omission keeps the historical wrapper (Issue id, title, author,

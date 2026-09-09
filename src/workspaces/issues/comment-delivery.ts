@@ -12,13 +12,11 @@ import {
   type IssueCommentDelivery,
 } from './comments.js'
 import { renderIssueCommentPrompt } from './comment-prompt.js'
-import { issueAssigneeResumeId, type IssueRecord } from './declaration.js'
+import { issueAssigneeResumeId, issueTimeoutMs, type IssueRecord } from './declaration.js'
 import {
   projectDeskComment,
   projectWorkspaceDeskFailure,
 } from './telegram-desk-project.js'
-
-const COMMENT_REPLY_TIMEOUT_MS = 300_000
 
 export type IssueCommentDispatchResult =
   | { status: 'not_requested'; reason: 'non_human_note' | 'owner_commented' }
@@ -100,7 +98,7 @@ export async function dispatchIssueCommentReply(input: {
     const result = await input.conversation.ask({
       prompt: issueCommentReplyPrompt(input),
       target,
-      timeoutMs: COMMENT_REPLY_TIMEOUT_MS,
+      timeoutMs: issueTimeoutMs(input.issue.timeout),
       ...(!targetResumeId ? { reconstruct: true } : {}),
       ...(input.source ? { source: input.source } : {}),
       subject: {

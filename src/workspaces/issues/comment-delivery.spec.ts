@@ -69,6 +69,18 @@ describe('issueCommentReplyPrompt', () => {
 })
 
 describe('dispatchIssueCommentReply', () => {
+  it.each([undefined, '15m', '60m'] as const)('uses the Issue timeout %s for owner replies', async (timeout) => {
+    const ask = vi.fn(async () => ({ status: 'dispatched', taskId: 'run-reply', resumeId: 'resume-owner' }))
+    await dispatchIssueCommentReply({
+      conversation: { ask } as unknown as WorkspaceConversationControl,
+      issueWorkspaceId: 'ws-home', issue: { ...issue('@resume-owner'), timeout }, comment,
+      source: { kind: 'human' },
+    })
+    expect(ask).toHaveBeenCalledWith(expect.objectContaining({
+      timeoutMs: timeout === undefined ? undefined : timeout === '15m' ? 900_000 : 3_600_000,
+    }))
+  })
+
   it('keeps agent-authored workspace-owned comments as notes', async () => {
     expect(await dispatchIssueCommentReply({
       issueWorkspaceId: 'ws-home',
